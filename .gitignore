@@ -1,6 +1,7 @@
-./Debug/*
-./Release/*
-./*.user
-./*.suo
-./*.nbc
-./*.aps
+Debug/*
+Release/*
+*.user
+*.suo
+*.ncb
+
+*.aps
