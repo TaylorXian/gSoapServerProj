@@ -104,8 +104,19 @@ void WriteLog(const char* info)
     char time_str[64] = {0};
     strftime(time_str, sizeof(time_str), "%Y/%m/%d %H:%M:%S %z...", localtime(&t));
 	pfLog = fopen("soap.log", "a+");
-	fprintf(pfLog, "%s%s\n", time_str, info);
+	if (info)
+	{
+	    fprintf(pfLog, "%s%s\n", time_str, info);
+	} else {
+	    fprintf(pfLog, "%s", time_str);
+	}    
     fclose(pfLog);
+}
+
+void SoapErr(struct soap *soap)
+{
+    WriteLog(NULL);
+    soap_print_fault(soap, stderr);
 }
 
 HANDLE OpenWebFile(LPCTSTR lpszFilename)
@@ -136,7 +147,7 @@ typedef enum {
     HTML, JS, CSS, OTHER
 } FileType;
 
-FileType get_filetype(const char* path)
+FileType GetFileType(const char* path)
 {
     if (path)
     {
@@ -156,7 +167,7 @@ FileType get_filetype(const char* path)
     return OTHER;
 }
 
-int my_http_get(struct soap *soap)
+int MyHttpGet(struct soap *soap)
 {
     const int BUFFER_SIZE = 1024 * 4;
     HRESULT hr = S_OK;
@@ -164,7 +175,7 @@ int my_http_get(struct soap *soap)
     DWORD dwBytesRead = 0;
     char read_buf[BUFFER_SIZE] = {0};
     
-    switch (get_filetype(soap->path))
+    switch (GetFileType(soap->path))
     {
         // HTTP response header with text/html
         case HTML: soap_response(soap, SOAP_HTML);
@@ -198,11 +209,40 @@ int my_http_get(struct soap *soap)
     return SOAP_OK;
 }
 
-HANDLE hSoapServerThd = NULL;
-DWORD soap_svr_thdid;
-BOOL start_svr = false;
+HANDLE WINAPI MyThread(
+    LPTHREAD_START_ROUTINE lpStartAddress,
+    LPDWORD lpThreadId,
+    LPVOID lpParameter = NULL,
+    DWORD dwCreationFlags = 0)
+{
+    return CreateThread(NULL, 0, 
+        lpStartAddress, 
+        lpParameter, 
+        dwCreationFlags, 
+        lpThreadId);
+}
 
-DWORD WINAPI StartgSoapServer(LPVOID lpThreadParameter)
+DWORD WINAPI ProcessRequest(LPVOID lpThreadParam)
+{
+    struct soap *psoap = (struct soap *)lpThreadParam;
+    if (soap_serve(psoap) != SOAP_OK) //
+    {
+        MessageBox(0, _T("soap_serve Error!"), _T("Error"), MB_OK);
+    }
+    soap_destroy(psoap);
+    soap_end(psoap);
+    soap_done(psoap);
+    free(psoap);
+    return 0;
+}
+
+HANDLE hSoapServerThd = NULL;
+DWORD soapSvrThdid;
+BOOL startSvr = false;
+#define BACKLOG (100) // Max. request backlog
+#define MAX_THR (5) // Max. threads to serve requests
+
+DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
 {
 	//ServiceService calc_service;
 	//calc_service.serve();
@@ -211,36 +251,59 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParameter)
 	// use the service operation request dispatcher
 	// open the log file.
 
+    struct soap* ptsoap[MAX_THR] = {0};
+    HANDLE th[MAX_THR] = {0};
+    DWORD tid[MAX_THR] = {0};
+    int i;
+    
 	struct soap calc_soap;
 	int m, s; // master and slave sockets
+	// soap init
 	soap_init(&calc_soap);
-	calc_soap.fget = my_http_get;
+	calc_soap.send_timeout = 60; // 60 seconds
+	calc_soap.recv_timeout = 60;
+	calc_soap.accept_timeout = 60;
+	//calc_soap.max_keep_alive = 100;
+	calc_soap.fget = MyHttpGet;
 	m = soap_bind(&calc_soap, 
 	    NULL, // 任何IP地址都可以访问
 	    18083, // 端口
 	    100); // 请求队列的长度
-	if (m < 0)
+	if (m < 0) //!soap_valid_socket(m)
 	{
 	    WriteLog("Start Server Error!");
-	    // MessageBox(0, _T("Start Server Error!\n"), _T("Info"), MB_OK);
+	    // 
+	    MessageBox(0, _T("Start Server Error!\n"), _T("Info"), MB_OK);
 	}
 	else
 	{
 	    WriteLog("Start Server successful........");
         MessageBox(0, _T("Start Server successful........"), _T("Info"), MB_OK);
-        while (start_svr)
+        while (startSvr)
         {
-        s = soap_accept(&calc_soap);
-        if (s < 0)
-        {
-            MessageBox(0, _T("soap_accept Error!"), _T("Error"), MB_OK);
-        }
-        if (soap_serve(&calc_soap) != SOAP_OK) //
-        {
-            MessageBox(0, _T("soap_serve Error!"), _T("Error"), MB_OK);
-        }
-        soap_destroy(&calc_soap);
-        soap_end(&calc_soap);
+            for (i = 0; i < MAX_THR; i++)
+            {
+                s = soap_accept(&calc_soap);
+                if (s < 0)
+                {
+                    SoapErr(&calc_soap);
+                    MessageBox(0, _T("soap_accept Error!"), _T("Error"), MB_OK);
+                    break;
+                }
+                // fprintf(...
+                if (!ptsoap[i]) // first time around
+                {
+                    ptsoap[i] = soap_copy(&calc_soap);
+                }
+                if (!ptsoap[i])
+                {
+                    // error
+                }
+                    th = MyThread(ProcessRequest, &tid, ptsoap);
+            }
+            for (i = 0; i < MAX_THR; i++)
+            {
+            }
         }
     }
     
@@ -253,10 +316,10 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParameter)
 void CgSoapMFCServerDlg::OnBnClickedButton1()
 {
     // TODO: Add your control notification handler code here
-    if (!start_svr)
+    if (!startSvr)
     {
-        start_svr = true;
-        hSoapServerThd = CreateThread(NULL, 0, StartgSoapServer, NULL, 0, &soap_svr_thdid);
+        startSvr = true;
+        hSoapServerThd = MyThread(StartgSoapServer, &soapSvrThdid);
     }
     else
     {
