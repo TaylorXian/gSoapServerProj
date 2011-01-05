@@ -241,6 +241,22 @@ DWORD soapSvrThdid;
 BOOL startSvr = false;
 #define BACKLOG (100) // Max. request backlog
 #define MAX_THR (5) // Max. threads to serve requests
+#define MAX_QUEUE (100) // Max. size of request queue
+
+SOAP_SOCKET queue[MAX_QUEUE]; // The global request of sockets
+int head = 0, tail = 0; // Queue head and tail
+pthread_mutex_t queue_cs;
+pthread_cond_t queue_cv;
+
+
+void my_soap_init(struct soap *pSoap)
+{
+	calc_soap.send_timeout = 60; // 60 seconds
+	calc_soap.recv_timeout = 60;
+	calc_soap.accept_timeout = 60;
+	//calc_soap.max_keep_alive = 100;
+	calc_soap.fget = MyHttpGet;
+}
 
 DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
 {
@@ -261,11 +277,9 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
 	int m, s; // master and slave sockets
 	// soap init
 	soap_init(&calc_soap);
-	calc_soap.send_timeout = 60; // 60 seconds
-	calc_soap.recv_timeout = 60;
-	calc_soap.accept_timeout = 60;
-	//calc_soap.max_keep_alive = 100;
-	calc_soap.fget = MyHttpGet;
+	my_soap_init(&calc_soap);
+	
+	// 
 	m = soap_bind(&calc_soap, 
 	    NULL, // 任何IP地址都可以访问
 	    18083, // 端口
@@ -328,4 +342,66 @@ void CgSoapMFCServerDlg::OnBnClickedButton1()
         MessageBox(NULL, _T("Server have been running!"), _T("Info"), MB_OK);
     }
     // StartgSoapServer(NULL);
+}
+
+void* process_queue(void* soap);
+int enqueue(SOAP_SOCKET sock);
+SOAP_SOCKET dequeue();
+void* process_queue(void* soap)
+{
+    struct soap* tsoap = (struct soap*)soap;
+    for (;;)
+    {
+        tsoap->socket = dequeue();
+        if (0)
+        {
+            break;
+        }
+        soap_serve(tsoap);
+        soap_destroy(tsoap);
+        soap_end(tsoap);
+        fprintf(stderr, "served\n");
+    }
+    
+    return NULL;
+}
+
+int enqueue(SOAP_SOCKET sock)
+{
+    int status = SOAP_OK;
+    int next;
+    pthread_mutex_lock(&queue_cs);
+    next = tail + 1;
+    if (next >= MAX_QUEUE)
+    {
+        next = 0;
+    }
+    if (next == head)
+    {
+        status = SOAP_EOM;
+    } else {
+        queue[tail] = sock;
+        tail = next;
+    }
+    pthread_cond_signal(&queue_cv);
+    pthread_mutex_unlock(&queue_cs);
+    
+    return status;
+}
+
+SOAP_SOCKET dequeue()
+{
+    SOAP_SOCKET sock;
+    pthread_mutex_lock(&queue_cs);
+    while (head == tail)
+    {
+        pthread_cond_wait(&queue_cv, &queue_cs);
+    }
+    sock = queue[head++];
+    if (head >= MAX_QUEUE)
+    {
+        head = 0;
+    }
+    pthread_mutex_unlock(&queue_cs);
+    return sock;
 }
