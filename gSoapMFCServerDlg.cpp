@@ -244,6 +244,7 @@ BOOL startSvr = false;
 
 DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
 {
+	startSvr = true;
 	//ServiceService calc_service;
 	//calc_service.serve();
 	
@@ -309,6 +310,8 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
     
     soap_done(&calc_soap);
     MessageBox(0, _T("soap_done!"), _T("Info"), MB_OK);
+
+	startSvr = true;
     
     return 0;
 }
@@ -318,12 +321,11 @@ void CgSoapMFCServerDlg::OnBnClickedButton1()
     // TODO: Add your control notification handler code here
     if (!startSvr)
     {
-        startSvr = true;
         hSoapServerThd = MyThread(StartgSoapServer, &soapSvrThdid);
     }
     else
     {
-        
+        MessageBox(NULL, _T("Server have been running!"), _T("Info"), MB_OK);
     }
     // StartgSoapServer(NULL);
 }
