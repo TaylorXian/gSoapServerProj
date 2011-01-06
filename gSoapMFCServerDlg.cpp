@@ -245,8 +245,8 @@ BOOL startSvr = false;
 
 SOAP_SOCKET queue[MAX_QUEUE]; // The global request of sockets
 int head = 0, tail = 0; // Queue head and tail
-pthread_mutex_t queue_cs;
-pthread_cond_t queue_cv;
+//pthread_mutex_t queue_cs;
+//pthread_cond_t queue_cv;
 
 
 void my_soap_init(struct soap *pSoap)
@@ -344,64 +344,64 @@ void CgSoapMFCServerDlg::OnBnClickedButton1()
     // StartgSoapServer(NULL);
 }
 
-void* process_queue(void* soap);
-int enqueue(SOAP_SOCKET sock);
-SOAP_SOCKET dequeue();
-void* process_queue(void* soap)
-{
-    struct soap* tsoap = (struct soap*)soap;
-    for (;;)
-    {
-        tsoap->socket = dequeue();
-        if (0)
-        {
-            break;
-        }
-        soap_serve(tsoap);
-        soap_destroy(tsoap);
-        soap_end(tsoap);
-        fprintf(stderr, "served\n");
-    }
-    
-    return NULL;
-}
-
-int enqueue(SOAP_SOCKET sock)
-{
-    int status = SOAP_OK;
-    int next;
-    pthread_mutex_lock(&queue_cs);
-    next = tail + 1;
-    if (next >= MAX_QUEUE)
-    {
-        next = 0;
-    }
-    if (next == head)
-    {
-        status = SOAP_EOM;
-    } else {
-        queue[tail] = sock;
-        tail = next;
-    }
-    pthread_cond_signal(&queue_cv);
-    pthread_mutex_unlock(&queue_cs);
-    
-    return status;
-}
-
-SOAP_SOCKET dequeue()
-{
-    SOAP_SOCKET sock;
-    pthread_mutex_lock(&queue_cs);
-    while (head == tail)
-    {
-        pthread_cond_wait(&queue_cv, &queue_cs);
-    }
-    sock = queue[head++];
-    if (head >= MAX_QUEUE)
-    {
-        head = 0;
-    }
-    pthread_mutex_unlock(&queue_cs);
-    return sock;
-}
+//void* process_queue(void* soap);
+//int enqueue(SOAP_SOCKET sock);
+//SOAP_SOCKET dequeue();
+//void* process_queue(void* soap)
+//{
+//    struct soap* tsoap = (struct soap*)soap;
+//    for (;;)
+//    {
+//        tsoap->socket = dequeue();
+//        if (0)
+//        {
+//            break;
+//        }
+//        soap_serve(tsoap);
+//        soap_destroy(tsoap);
+//        soap_end(tsoap);
+//        fprintf(stderr, "served\n");
+//    }
+//    
+//    return NULL;
+//}
+//
+//int enqueue(SOAP_SOCKET sock)
+//{
+//    int status = SOAP_OK;
+//    int next;
+//    pthread_mutex_lock(&queue_cs);
+//    next = tail + 1;
+//    if (next >= MAX_QUEUE)
+//    {
+//        next = 0;
+//    }
+//    if (next == head)
+//    {
+//        status = SOAP_EOM;
+//    } else {
+//        queue[tail] = sock;
+//        tail = next;
+//    }
+//    pthread_cond_signal(&queue_cv);
+//    pthread_mutex_unlock(&queue_cs);
+//    
+//    return status;
+//}
+//
+//SOAP_SOCKET dequeue()
+//{
+//    SOAP_SOCKET sock;
+//    pthread_mutex_lock(&queue_cs);
+//    while (head == tail)
+//    {
+//        pthread_cond_wait(&queue_cv, &queue_cs);
+//    }
+//    sock = queue[head++];
+//    if (head >= MAX_QUEUE)
+//    {
+//        head = 0;
+//    }
+//    pthread_mutex_unlock(&queue_cs);
+//    return sock;
+//}
