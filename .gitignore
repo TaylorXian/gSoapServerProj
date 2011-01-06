@@ -4,5 +4,5 @@ Release/*
 *.user
 *.suo
 *.ncb
-
 *.aps
+*.log

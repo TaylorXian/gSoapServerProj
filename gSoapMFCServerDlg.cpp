@@ -89,10 +89,13 @@ HCURSOR CgSoapMFCServerDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+void WriteLog(const char* info_format, ...);
+
 // Implementation of the "add" service operation
 int ns__add(struct soap *calc_soap, double a, double b, double &result)
 {
     result = a + b;
+	WriteLog("a + b = %lf", a, b, result);
     return SOAP_OK;
 }
 
@@ -205,6 +208,7 @@ int MyHttpGet(struct soap *soap)
     }    
     soap_end_send(soap);
     CloseHandle(hFile);
+	WriteLog("MyHttpGet %s", soap->path);
 
     return SOAP_OK;
 }
@@ -240,7 +244,7 @@ HANDLE hSoapServerThd = NULL;
 DWORD soapSvrThdid;
 BOOL startSvr = false;
 #define BACKLOG (100) // Max. request backlog
-#define MAX_THR (5) // Max. threads to serve requests
+#define MAX_THR (3) // Max. threads to serve requests
 #define MAX_QUEUE (100) // Max. size of request queue
 
 SOAP_SOCKET queue[MAX_QUEUE]; // The global request of sockets
@@ -253,7 +257,7 @@ void my_soap_init(struct soap *pSoap)
 {
 	pSoap->send_timeout = 60; // 60 seconds
 	pSoap->recv_timeout = 60;
-	pSoap->accept_timeout = 60;
+	//pSoap->accept_timeout = 60; // 无限等待连接请求
 	//pSoap->max_keep_alive = 100;
 	pSoap->fget = MyHttpGet;
 }
@@ -306,33 +310,43 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
                     break;
                 }
                 // fprintf(...
-				WriteLog("Thread %d accept socket %d connection from IP %d.%d.%d.%d", 
+				WriteLog("Thread %d accept socket %d connection from IP %3d.%3d.%3d.%3d", 
 					i, s, (calc_soap.ip >> 24) & 0xFF, 
 					(calc_soap.ip >> 16) & 0xFF, 
 					(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF);
                 if (!ptsoap[i]) // first time around
                 {
                     ptsoap[i] = soap_copy(&calc_soap);
+					if (!ptsoap[i])
+					{
+						ASSERT(0);
+						exit(1);
+						// error
+					}
                 }
-                if (!ptsoap[i])
-                {
-					ASSERT(0);
-					exit(1);
-                    // error
-                }
-				WaitForSingleObject(th[i], 1 * 1000);
-				WriteLog("Thread %d[%d] completed, status tid = %d\n", th[i], i, tid[i]);
-				// deallocate C++ data of old thread
-				soap_destroy(ptsoap[i]); 
-				// deallocate data of old thread
-				soap_end(ptsoap[i]); 
+				else
+				{
+					WaitForSingleObject(th[i], 1 * 1000);
+					WriteLog("Thread %d[%d] completed, status tid = %d", th[i], i, tid[i]);
+					// deallocate C++ data of old thread
+					soap_destroy(ptsoap[i]); 
+					// deallocate data of old thread
+					soap_end(ptsoap[i]); 
+				}
 				// new socket fd
 				ptsoap[i]->socket = s;
 				th[i] = MyThread(ProcessRequest, &tid[i], ptsoap[i]);
             }
             for (i = 0; i < MAX_THR; i++)
             {
+				if (ptsoap[i])
+				{
+					soap_done(ptsoap[i]); //detach context
+					free(ptsoap[i]); //free up
+				}
             }
+
+			startSvr = false;
         }
     }
     
