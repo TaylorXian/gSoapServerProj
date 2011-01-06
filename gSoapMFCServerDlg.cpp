@@ -96,21 +96,21 @@ int ns__add(struct soap *calc_soap, double a, double b, double &result)
     return SOAP_OK;
 }
 
-void WriteLog(const char* info)
+void WriteLog(const char* info_format, ...)
 {
+	va_list arg_ptr;
+	va_start(arg_ptr, info_format);
     FILE *pfLog;
     time_t t;
     time(&t);
     char time_str[64] = {0};
     strftime(time_str, sizeof(time_str), "%Y/%m/%d %H:%M:%S %z...", localtime(&t));
 	pfLog = fopen("soap.log", "a+");
-	if (info)
-	{
-	    fprintf(pfLog, "%s%s\n", time_str, info);
-	} else {
-	    fprintf(pfLog, "%s", time_str);
-	}    
+	fprintf(pfLog, "%s", time_str);
+	fprintf(pfLog, info_format, arg_ptr);
+	fprintf(pfLog, "\n");
     fclose(pfLog);
+	va_end(arg_ptr);
 }
 
 void SoapErr(struct soap *soap)
@@ -251,11 +251,11 @@ int head = 0, tail = 0; // Queue head and tail
 
 void my_soap_init(struct soap *pSoap)
 {
-	calc_soap.send_timeout = 60; // 60 seconds
-	calc_soap.recv_timeout = 60;
-	calc_soap.accept_timeout = 60;
-	//calc_soap.max_keep_alive = 100;
-	calc_soap.fget = MyHttpGet;
+	pSoap->send_timeout = 60; // 60 seconds
+	pSoap->recv_timeout = 60;
+	pSoap->accept_timeout = 60;
+	//pSoap->max_keep_alive = 100;
+	pSoap->fget = MyHttpGet;
 }
 
 DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
@@ -306,15 +306,29 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
                     break;
                 }
                 // fprintf(...
+				WriteLog("Thread %d accept socket %d connection from IP %d.%d.%d.%d", 
+					i, s, (calc_soap.ip >> 24) & 0xFF, 
+					(calc_soap.ip >> 16) & 0xFF, 
+					(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF);
                 if (!ptsoap[i]) // first time around
                 {
                     ptsoap[i] = soap_copy(&calc_soap);
                 }
                 if (!ptsoap[i])
                 {
+					ASSERT(0);
+					exit(1);
                     // error
                 }
-                    th = MyThread(ProcessRequest, &tid, ptsoap);
+				WaitForSingleObject(th[i], 1 * 1000);
+				WriteLog("Thread %d[%d] completed, status tid = %d\n", th[i], i, tid[i]);
+				// deallocate C++ data of old thread
+				soap_destroy(ptsoap[i]); 
+				// deallocate data of old thread
+				soap_end(ptsoap[i]); 
+				// new socket fd
+				ptsoap[i]->socket = s;
+				th[i] = MyThread(ProcessRequest, &tid[i], ptsoap[i]);
             }
             for (i = 0; i < MAX_THR; i++)
             {
@@ -325,8 +339,9 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
     soap_done(&calc_soap);
     MessageBox(0, _T("soap_done!"), _T("Info"), MB_OK);
 
-	startSvr = true;
-    
+	startSvr = false;
+	WriteLog("Web Server End........");
+
     return 0;
 }
 
@@ -339,7 +354,13 @@ void CgSoapMFCServerDlg::OnBnClickedButton1()
     }
     else
     {
-        MessageBox(NULL, _T("Server have been running!"), _T("Info"), MB_OK);
+		startSvr = false;
+		::MessageBox(0, 
+			_T("WebServer have been running!"), 
+			_T("Info"), MB_OK);
+		::MessageBox(0, 
+			_T("WebServer will be stoped!\nMaybe need another request!"), 
+			_T("Info"), MB_OK);
     }
     // StartgSoapServer(NULL);
 }
