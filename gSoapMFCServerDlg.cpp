@@ -257,7 +257,7 @@ void my_soap_init(struct soap *pSoap)
 {
 	pSoap->send_timeout = 60; // 60 seconds
 	pSoap->recv_timeout = 60;
-	//pSoap->accept_timeout = 60; // 无限等待连接请求
+	pSoap->accept_timeout = 60; // 无限等待连接请求
 	//pSoap->max_keep_alive = 100;
 	pSoap->fget = MyHttpGet;
 }
@@ -311,7 +311,7 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
                 }
                 // fprintf(...
 				WriteLog("Thread %d accept socket %d connection from IP %3d.%3d.%3d.%3d", 
-					i, s, (calc_soap.ip >> 24) & 0xFF, 
+					tid[i], s, (calc_soap.ip >> 24) & 0xFF, 
 					(calc_soap.ip >> 16) & 0xFF, 
 					(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF);
                 if (!ptsoap[i]) // first time around
@@ -337,8 +337,11 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
 				ptsoap[i]->socket = s;
 				th[i] = MyThread(ProcessRequest, &tid[i], ptsoap[i]);
             }
+
+			WaitForMultipleObjects(MAX_THR, th, TRUE, 1 * 1000);
             for (i = 0; i < MAX_THR; i++)
             {
+				CloseHandle(th[i]);
 				if (ptsoap[i])
 				{
 					soap_done(ptsoap[i]); //detach context
