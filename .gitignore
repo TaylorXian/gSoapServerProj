@@ -1,6 +1,8 @@
 Debug
 Debug/*
 Release/*
+gSoapTest/Debug
+gSoapTest/Release
 *.user
 *.suo
 *.ncb

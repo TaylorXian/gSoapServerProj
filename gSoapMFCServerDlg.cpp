@@ -110,7 +110,7 @@ void WriteLog(const char* info_format, ...)
     strftime(time_str, sizeof(time_str), "%Y/%m/%d %H:%M:%S %z...", localtime(&t));
 	pfLog = fopen("soap.log", "a+");
 	fprintf(pfLog, "%s", time_str);
-	fprintf(pfLog, info_format, arg_ptr);
+	vfprintf(pfLog, info_format, arg_ptr);
 	fprintf(pfLog, "\n");
     fclose(pfLog);
 	va_end(arg_ptr);
