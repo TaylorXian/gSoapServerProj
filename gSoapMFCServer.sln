@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gSoapMFCServer", "gSoapMFCServer.vcproj", "{05889EC2-FBEB-4B81-ABCB-DB17243F5FC0}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gSoapTest", "gSoapTest\gSoapTest.vcproj", "{D6F19664-353B-4B5E-91D2-41C1DE372F57}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -13,6 +15,10 @@ Global
 		{05889EC2-FBEB-4B81-ABCB-DB17243F5FC0}.Debug|Win32.Build.0 = Debug|Win32
 		{05889EC2-FBEB-4B81-ABCB-DB17243F5FC0}.Release|Win32.ActiveCfg = Release|Win32
 		{05889EC2-FBEB-4B81-ABCB-DB17243F5FC0}.Release|Win32.Build.0 = Release|Win32
+		{D6F19664-353B-4B5E-91D2-41C1DE372F57}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D6F19664-353B-4B5E-91D2-41C1DE372F57}.Debug|Win32.Build.0 = Debug|Win32
+		{D6F19664-353B-4B5E-91D2-41C1DE372F57}.Release|Win32.ActiveCfg = Release|Win32
+		{D6F19664-353B-4B5E-91D2-41C1DE372F57}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
