@@ -89,7 +89,107 @@ HCURSOR CgSoapMFCServerDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+HANDLE WINAPI MyThread(LPTHREAD_START_ROUTINE lpStartAddress,
+					   LPDWORD lpThreadId,
+					   LPVOID lpParameter = NULL,
+					   DWORD dwCreationFlags = 0);
 void WriteLog(const char* info_format, ...);
+void my_soap_init(struct soap *pSoap);
+void SoapErr(struct soap *soap);
+HANDLE hSoapServerThd = NULL;
+DWORD soapSvrThdid;
+BOOL startSvr = false;
+
+DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
+{
+	startSvr = true;
+	//ServiceService calc_service;
+	//calc_service.serve();
+	
+	// soap_serve(soap_new()); 
+	// use the service operation request dispatcher
+	// open the log file.
+
+    int i = 1;
+    
+	struct soap calc_soap;
+	int m, s; // master and slave sockets
+	// soap init
+	soap_init(&calc_soap);
+	my_soap_init(&calc_soap);
+	
+	// 
+	m = soap_bind(&calc_soap, 
+	    NULL, // 任何IP地址都可以访问
+	    18083, // 端口
+	    100); // 请求队列的长度
+	if (m < 0) //!soap_valid_socket(m)
+	{
+	    WriteLog("Start Server Error!");
+	    // 
+	    MessageBox(0, _T("Start Server Error!\n"), _T("Info"), MB_OK);
+	}
+	else
+	{
+	    WriteLog("Start Server successful........");
+        MessageBox(0, _T("Start Server successful........"), _T("Info"), MB_OK);
+        while (startSvr)
+        {
+            s = soap_accept(&calc_soap);
+            if (s < 0)
+            {
+                SoapErr(&calc_soap);
+                MessageBox(0, _T("soap_accept Error!"), _T("Error"), MB_OK);
+                break;
+            }
+            // fprintf(...
+			WriteLog("Thread %d accept socket %d connection from IP %3d.%3d.%3d.%3d, request %d", 
+				soapSvrThdid, s, (calc_soap.ip >> 24) & 0xFF, 
+				(calc_soap.ip >> 16) & 0xFF, 
+				(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF, i++);
+            // process RPC request
+			if (soap_serve(&calc_soap) != SOAP_OK)
+			{}
+			
+			WriteLog("request served");
+			// clean up class instances
+			// deallocate C++ data of old thread
+			soap_destroy(&calc_soap); 
+			// clean up everything and close socket
+			// deallocate data of old thread
+			soap_end(&calc_soap); 			
+		}
+    }
+    
+    soap_done(&calc_soap);
+    MessageBox(0, _T("soap_done!"), _T("Info"), MB_OK);
+
+	startSvr = false;
+	WriteLog("Web Server End........");
+
+    return 0;
+}
+
+void CgSoapMFCServerDlg::OnBnClickedButton1()
+{
+    // TODO: Add your control notification handler code here
+    if (!startSvr)
+    {
+        hSoapServerThd = MyThread(gSoapServer, &soapSvrThdid);
+    }
+    else
+    {
+		startSvr = false;
+		::MessageBox(0, 
+			_T("WebServer have been running!"), 
+			_T("Info"), MB_OK);
+		::MessageBox(0, 
+			_T("WebServer will be stoped!\nMaybe need another request!"), 
+			_T("Info"), MB_OK);
+    }
+    // StartgSoapServer(NULL);
+}
+
 
 // Implementation of the "add" service operation
 int ns__add(struct soap *calc_soap, double a, double b, double &result)
@@ -216,8 +316,8 @@ int MyHttpGet(struct soap *soap)
 HANDLE WINAPI MyThread(
     LPTHREAD_START_ROUTINE lpStartAddress,
     LPDWORD lpThreadId,
-    LPVOID lpParameter = NULL,
-    DWORD dwCreationFlags = 0)
+    LPVOID lpParameter,
+    DWORD dwCreationFlags)
 {
     return CreateThread(NULL, 0, 
         lpStartAddress, 
@@ -240,9 +340,6 @@ DWORD WINAPI ProcessRequest(LPVOID lpThreadParam)
     return 0;
 }
 
-HANDLE hSoapServerThd = NULL;
-DWORD soapSvrThdid;
-BOOL startSvr = false;
 #define BACKLOG (100) // Max. request backlog
 #define MAX_THR (3) // Max. threads to serve requests
 #define MAX_QUEUE (100) // Max. size of request queue
@@ -360,26 +457,6 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
 	WriteLog("Web Server End........");
 
     return 0;
-}
-
-void CgSoapMFCServerDlg::OnBnClickedButton1()
-{
-    // TODO: Add your control notification handler code here
-    if (!startSvr)
-    {
-        hSoapServerThd = MyThread(StartgSoapServer, &soapSvrThdid);
-    }
-    else
-    {
-		startSvr = false;
-		::MessageBox(0, 
-			_T("WebServer have been running!"), 
-			_T("Info"), MB_OK);
-		::MessageBox(0, 
-			_T("WebServer will be stoped!\nMaybe need another request!"), 
-			_T("Info"), MB_OK);
-    }
-    // StartgSoapServer(NULL);
 }
 
 //void* process_queue(void* soap);
