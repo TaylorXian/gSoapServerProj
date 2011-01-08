@@ -143,7 +143,7 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
                 break;
             }
             // fprintf(...
-			WriteLog("Thread %d accept socket %d connection from IP %3d.%3d.%3d.%3d, request %d", 
+			WriteLog("Thread %d accept socket %d connection from IP %d.%d.%d.%d, request %d", 
 				soapSvrThdid, s, (calc_soap.ip >> 24) & 0xFF, 
 				(calc_soap.ip >> 16) & 0xFF, 
 				(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF, i++);
@@ -233,7 +233,7 @@ HANDLE OpenWebFile(LPCTSTR lpszFilename)
     NULL);
 }
 
-HRESULT ReadFileToBuffer(HANDLE hFile, LPSTR read_buf, DWORD buf_len, LPDWORD lpdwBytesRead)
+HRESULT ReadFileToBuffer(HANDLE hFile, LPVOID read_buf, DWORD buf_len, LPDWORD lpdwBytesRead)
 {
     HRESULT hr = S_OK;
     ZeroMemory(read_buf, buf_len);
@@ -272,7 +272,7 @@ FileType GetFileType(const char* path)
 
 int MyHttpGet(struct soap *soap)
 {
-    const int BUFFER_SIZE = 1024 * 4;
+    const int BUFFER_SIZE = 1024 * 8;
     HRESULT hr = S_OK;
     HANDLE hFile;
     DWORD dwBytesRead = 0;
@@ -282,7 +282,14 @@ int MyHttpGet(struct soap *soap)
     {
         // HTTP response header with text/html
         case HTML: soap_response(soap, SOAP_HTML);
-            hFile = OpenWebFile(_T("./index.htm"));
+            if (strstr(soap->path, "test"))
+            {
+                hFile = OpenWebFile(_T("./test.htm"));
+            }
+            else
+            {
+                hFile = OpenWebFile(_T("./index.htm"));
+            }
             break;
         case JS: soap_response(soap, SOAP_FILE);
             hFile = OpenWebFile(_T("./jquery-1.4.4.min.js"));
@@ -303,7 +310,7 @@ int MyHttpGet(struct soap *soap)
                 read_buf, 
                 BUFFER_SIZE, 
                 &dwBytesRead);
-            soap_send(soap, read_buf);
+            soap_send_raw(soap, read_buf, dwBytesRead);
         } while (!(dwBytesRead < BUFFER_SIZE));
     }    
     soap_end_send(soap);
@@ -354,7 +361,7 @@ void my_soap_init(struct soap *pSoap)
 {
 	pSoap->send_timeout = 60; // 60 seconds
 	pSoap->recv_timeout = 60;
-	pSoap->accept_timeout = 60; // 无限等待连接请求
+	//pSoap->accept_timeout = 0;  无限等待连接请求
 	//pSoap->max_keep_alive = 100;
 	pSoap->fget = MyHttpGet;
 }
@@ -407,7 +414,7 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
                     break;
                 }
                 // fprintf(...
-				WriteLog("Thread %d accept socket %d connection from IP %3d.%3d.%3d.%3d", 
+				WriteLog("Thread %d accept socket %d connection from IP %d.%d.%d.%d", 
 					tid[i], s, (calc_soap.ip >> 24) & 0xFF, 
 					(calc_soap.ip >> 16) & 0xFF, 
 					(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF);

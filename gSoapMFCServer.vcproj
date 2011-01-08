@@ -299,6 +299,11 @@
 				RelativePath=".\jquery-1.4.4.min.js"
 				>
 			</File>
+			<File
+				RelativePath=".\test.htm"
+				DeploymentContent="true"
+				>
+			</File>
 		</Filter>
 		<File
 			RelativePath=".\ReadMe.txt"
