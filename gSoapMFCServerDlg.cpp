@@ -361,6 +361,7 @@ void my_soap_init(struct soap *pSoap)
 {
 	pSoap->send_timeout = 60; // 60 seconds
 	pSoap->recv_timeout = 60;
+	//pSoap->tc
 	//pSoap->accept_timeout = 0;  无限等待连接请求
 	//pSoap->max_keep_alive = 100;
 	pSoap->fget = MyHttpGet;

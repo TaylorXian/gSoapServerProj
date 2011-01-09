@@ -291,6 +291,10 @@
 			Name="Web"
 			>
 			<File
+				RelativePath=".\config.ini"
+				>
+			</File>
+			<File
 				RelativePath=".\index.htm"
 				DeploymentContent="true"
 				>
