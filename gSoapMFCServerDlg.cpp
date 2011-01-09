@@ -33,7 +33,7 @@ BEGIN_MESSAGE_MAP(CgSoapMFCServerDlg, CDialog)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	//}}AFX_MSG_MAP
-    ON_BN_CLICKED(IDC_BUTTON1, &CgSoapMFCServerDlg::OnBnClickedButton1)
+    ON_BN_CLICKED(IDC_BUTTON1, &CgSoapMFCServerDlg::OnBnClickedStart)
 END_MESSAGE_MAP()
 
 
@@ -94,6 +94,7 @@ HANDLE WINAPI MyThread(LPTHREAD_START_ROUTINE lpStartAddress,
 					   LPVOID lpParameter = NULL,
 					   DWORD dwCreationFlags = 0);
 void WriteLog(const char* info_format, ...);
+HRESULT GenerateConfigTable();
 void my_soap_init(struct soap *pSoap);
 void SoapErr(struct soap *soap);
 HANDLE hSoapServerThd = NULL;
@@ -170,9 +171,13 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
     return 0;
 }
 
-void CgSoapMFCServerDlg::OnBnClickedButton1()
+
+
+void CgSoapMFCServerDlg::OnBnClickedStart()
 {
     // TODO: Add your control notification handler code here
+    
+    //HRESULT hr = SendConfigTable();
     if (!startSvr)
     {
         hSoapServerThd = MyThread(gSoapServer, &soapSvrThdid);
@@ -246,6 +251,142 @@ HRESULT ReadFileToBuffer(HANDLE hFile, LPVOID read_buf, DWORD buf_len, LPDWORD l
     return hr;
 }
 
+int ConfigChangeState(struct soap * pSoap, int *pState, char *pCh)
+{
+    switch(*pState)
+    {
+        case 0:
+        {
+            soap_send(pSoap, "<tr><td>");
+            if (*pCh == '=')
+            {
+                *pState = 2;
+            }
+            else if (*pCh == '\r' || *pCh == '\n')
+            {
+                *pState = 4;
+            }
+            else
+            {
+                *pState = 1;
+            }
+            break;
+        }
+        case 1:
+        {
+            soap_send(pSoap, "</td>");
+            if (*pCh == '=')
+            {
+                *pState = 2;
+            }
+            else if (*pCh == '\r' || *pCh == '\n')
+            {
+                *pState = 4;
+            }
+            break;
+        }
+        case 2:
+        {
+            soap_send(pSoap, "<td>");
+            if (*pCh == '\r' || *pCh == '\n')
+            {
+                *pState = 4;
+            }
+            else
+            {
+                *pState = 3;
+            }
+            break;
+        }
+        case 3:
+        {
+            soap_send(pSoap, "</td><td>=</td>");
+            if (*pCh == '\r' || *pCh == '\n')
+            {
+                *pState = 4;
+            }
+            break;
+        }
+        case 4:
+        case 5:
+        {
+            if (*pCh != '\r' || *pCh != '\n')
+            {
+                soap_send(pSoap, "</tr>");
+                *pState = 0;
+            }
+            else if (*pState == 4 || *pState == 5)
+            {
+                *pState = 5;
+            }
+            break;
+        }
+        default:
+            return *pState;
+    }
+    return *pState;
+}
+
+HRESULT SendConfigTable(struct soap *pSoap)
+{
+    HRESULT hr;
+    const int BUFFER_SIZE = 128;
+    HANDLE hCfgFile = OpenWebFile(_T("./config.ini"));
+    if (hCfgFile == INVALID_HANDLE_VALUE) 
+    {
+        hr = HRESULT_FROM_WIN32(::GetLastError());
+    }
+    LPSTR lpBuffer = new CHAR[BUFFER_SIZE];
+    if (lpBuffer)
+    {
+        ZeroMemory(lpBuffer, BUFFER_SIZE);
+    }
+
+    soap_send(pSoap, "<table>");
+    DWORD dwBytesRead = 0;
+    int state = 0;
+    do {
+        hr = ReadFileToBuffer(hCfgFile, 
+            lpBuffer, BUFFER_SIZE, &dwBytesRead);
+        //CopyMemory(lpHtmlBuffer, lpBuffer, dwBytesRead);
+        int start = 0;
+        int indexHtml = 0;
+        for (int i = 0; i < dwBytesRead; i++)
+        {
+            if (state == 0 || state == 2)
+            {
+                start = i;
+            }
+            switch (ConfigChangeState(pSoap, &state, lpBuffer + i))
+            {
+                case 2: 
+                case 4:
+                {
+                    if (i - start > 0)
+                    {
+                        soap_send_raw(pSoap, lpBuffer + start, i - start);
+                    }
+                    break;
+                }
+                default: break;
+            }
+        }
+        if (dwBytesRead - start > 0)
+        {
+            soap_send_raw(pSoap, lpBuffer + start, dwBytesRead - start);
+        }
+    } while (!(dwBytesRead < BUFFER_SIZE));
+    soap_send_raw(pSoap, "</table>", strlen("</table>"));
+    
+    if (lpBuffer) 
+    {
+        delete[] lpBuffer;
+        lpBuffer = NULL;
+    }
+    CloseHandle(hCfgFile);
+    return hr;
+}
+
 typedef enum {
     HTML, JS, CSS, OTHER
 } FileType;
@@ -268,6 +409,60 @@ FileType GetFileType(const char* path)
         }
     }
     return OTHER;
+}
+
+int ChangeState(int *pState, char *pCh)
+{
+    switch(*pState)
+    {
+        case 0:
+        {
+            if (*pCh == '<')
+            {
+                *pState = 1;
+            }
+            break;
+        }
+        case 1:
+        {
+            if (*pCh == '%')
+            {
+                *pState = 2;
+            }
+            else if (*pCh == '<')
+            {
+            }
+            else
+            {
+                *pState = 0;
+            }
+            break;
+        }
+        case 2:
+        {
+            if (*pCh == '%')
+            {
+                *pState = 3;
+            }
+            break;
+        }
+        case 3:
+        {
+            if (*pCh == '>')
+            {
+                *pState = 4;
+            }
+            else
+            {
+                *pState = 2;
+            }
+            break;
+        }
+        default:
+            return *pState;
+    }
+    
+    return *pState;
 }
 
 int MyHttpGet(struct soap *soap)
@@ -305,12 +500,54 @@ int MyHttpGet(struct soap *soap)
     }
     if (SUCCEEDED(hr))
     {
+        int status = 0;
         do {
+            int start = -1;
+            int end = -1;
             ReadFileToBuffer(hFile,
                 read_buf, 
                 BUFFER_SIZE, 
                 &dwBytesRead);
-            soap_send_raw(soap, read_buf, dwBytesRead);
+            if (soap->status == SOAP_HTML)
+            {
+                // search for <% %>
+                for (int i = 0; i < dwBytesRead; i++)
+                {
+                    switch (ChangeState(&status, read_buf + i))
+                    {
+                        case 1:
+                        {
+                            start = i;
+                            break;
+                        }
+                        case 3:
+                        {
+                            end = i + 2;
+                        }
+                    }
+                }
+                if (status == 0)
+                {
+                    soap_send_raw(soap, read_buf, dwBytesRead);
+                }
+                if (status > 0 && !(start < 0))
+                {
+                    soap_send_raw(soap, read_buf, start);
+                }
+                if (status > 3 && end > 0 && (dwBytesRead - end) > 0)
+                {
+                    SendConfigTable(soap);
+                    soap_send_raw(soap, read_buf + end, dwBytesRead - end);
+                }
+                if (status > 3 && start < 0 && end < 0)
+                {
+                    soap_send_raw(soap, read_buf, dwBytesRead);
+                }
+            }
+            else
+            {
+                soap_send_raw(soap, read_buf, dwBytesRead);
+            }
         } while (!(dwBytesRead < BUFFER_SIZE));
     }    
     soap_end_send(soap);

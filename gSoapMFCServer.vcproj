@@ -92,7 +92,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="echo $(ProjectDir)&#x0D;&#x0A;copy /Y $(ProjectDir)*.htm* $(OutDir)&#x0D;&#x0A;copy /Y $(ProjectDir)*.xml $(OutDir)&#x0D;&#x0A;copy /Y $(ProjectDir)*.js $(OutDir)&#x0D;&#x0A;::copy /Y $(ProjectDir)*.css $(OutDir)&#x0D;&#x0A;exit&#x0D;&#x0A;"
+				CommandLine="echo $(ProjectDir)&#x0D;&#x0A;copy /Y $(ProjectDir)*.htm* $(OutDir)&#x0D;&#x0A;copy /Y $(ProjectDir)*.xml $(OutDir)&#x0D;&#x0A;copy /Y $(ProjectDir)*.js $(OutDir)&#x0D;&#x0A;copy /Y $(ProjectDir)*.ini $(OutDir)&#x0D;&#x0A;exit&#x0D;&#x0A;"
 			/>
 		</Configuration>
 		<Configuration
