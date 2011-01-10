@@ -205,6 +205,14 @@ int ns__add(struct soap *calc_soap, double a, double b, double &result)
     return SOAP_OK;
 }
 
+// Implementation of the "winconfig" service operation
+int ns__winconfig(struct soap*, char *key, char *value, bool &result)
+{
+    result = false;
+	WriteLog("%s = %s", key, value);
+    return SOAP_OK;
+}
+
 void WriteLog(const char* info_format, ...)
 {
 	va_list arg_ptr;
@@ -297,7 +305,8 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
             }
             else if (*pCh != '=')
             {
-				LPCSTR html= "<td>=</td><td><input type='text' value='";
+				//LPCSTR html= "<td>=</td><td><input type='text' value='";
+				LPCSTR html= "<td>=</td><td>";
 				pushStack(pStack, html, strlen(html));
                 *pState = 3;
             }
@@ -307,7 +316,8 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
         {
             if (*pCh == '\r' || *pCh == '\n')
             {
-				LPCSTR html = "' name='web' id='btn' /></td></tr>";
+				//LPCSTR html = "' name='web' id='btn' /></td></tr>";
+				LPCSTR html = "</td></tr>";
 				pushStack(pStack, html, strlen(html));
                 *pState = 4;
             }
@@ -352,7 +362,8 @@ HRESULT SendConfigTable(struct soap* pSoap, poutStackBuffer pStack)
         ZeroMemory(lpBuffer, BUFFER_SIZE);
     }
 
-    pushStack(pStack, "<table>", 7);
+    LPCSTR table = "<table id='config'>";
+    pushStack(pStack, table, strlen(table));
     DWORD dwBytesRead = 0;
     int state = 0;
     do {
@@ -502,6 +513,7 @@ HANDLE SelectFile(struct soap *soap)
         default:
 		{
 			soap_response(soap, SOAP_FILE);
+            //hFile = OpenWebFile(_T("./ns.winconfig.req.xml"));
             hFile = OpenWebFile(_T("./ns.add.req.xml"));
 		}
     }

@@ -3,7 +3,7 @@
     <meta name="GENERATOR" content="Microsoft Visual Studio 8.0" />
     <title>My name is gSoap Server Test.</title>
 
-    <script type="text/javascript" src="./jquery-1.4.4.min.js"></script>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-latest.js"></script>
 
     <script type="text/javascript">
         document.write('Hello' + '<br />');
@@ -11,7 +11,7 @@
         $(document).ready(function() {
             $('#btn').click(function() {
                 jQuery.ajax({
-                    type: "POST", //"GET", 
+                    type: "POST", //"GET",
                     url: "http://localhost:18083/",
                     contentType: "application/*",
                     data: soap_req,
