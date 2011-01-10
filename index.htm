@@ -48,11 +48,19 @@
         }
         div.line
         {
+        	margin: 50px auto;
+        	padding: 0px 5px 0px 25px;
             display: block;
-            width: 360px;
+            min-width: 360px;
             text-align: right;
             line-height: 120%;
             vertical-align: middle;
+        }
+        table td
+        {
+        	border: solid 1px black;
+        	min-width: 120px;
+        	text-align: justify;
         }
     </style>
 </head>
@@ -62,7 +70,7 @@
         Web server is operational.</h4>
     <input type="button" value="click me get soap data" name="web" id="btnGetRequestSoapData" />
     <input type="button" value="click me call web service" name="web" id="btn" />
-    <div style="display: block;">
+    <div class="line" style="display: block;">
         <% <table>
             <tr>
                 <td>

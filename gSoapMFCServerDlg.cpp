@@ -258,9 +258,9 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
     {
         case 0:
         {
-            pushStack(pStack, "<tr><td>", 8);
             if (*pCh == '=')
             {
+				pushStack(pStack, "<tr><td></td>", 13);
                 *pState = 2;
             }
             else if (*pCh == '\r' || *pCh == '\n')
@@ -269,57 +269,66 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
             }
             else
             {
+				pushStack(pStack, "<tr><td>", 8);
                 *pState = 1;
             }
             break;
         }
         case 1:
         {
-            pushStack(pStack, "</td>", 5);
             if (*pCh == '=')
             {
+				pushStack(pStack, "</td>", 5);
                 *pState = 2;
             }
             else if (*pCh == '\r' || *pCh == '\n')
             {
+				pushStack(pStack, "</td><td>=</td><td></td></tr>", 29);
                 *pState = 4;
             }
             break;
         }
         case 2:
         {
-            pushStack(pStack, "<td>", 4);
             if (*pCh == '\r' || *pCh == '\n')
             {
+				pushStack(pStack, "<td>=</td><td></td></tr>", 24);
                 *pState = 4;
             }
-            else
+            else if (*pCh != '=')
             {
+				LPCSTR html= "<td>=</td><td><input type='text' value='";
+				pushStack(pStack, html, strlen(html));
                 *pState = 3;
             }
             break;
         }
         case 3:
         {
-            pushStack(pStack, "</td><td>=</td>", 15);
             if (*pCh == '\r' || *pCh == '\n')
             {
+				LPCSTR html = "' name='web' id='btn' /></td></tr>";
+				pushStack(pStack, html, strlen(html));
                 *pState = 4;
             }
             break;
         }
         case 4:
-        case 5:
         {
-            if (*pCh != '\r' || *pCh != '\n')
+            if (*pCh == '\r' || *pCh == '\n')
             {
-                pushStack(pStack, "</tr>", 5);
                 *pState = 0;
             }
-            else if (*pState == 4 || *pState == 5)
+            else if (*pState == '=')
             {
-                *pState = 5;
+                pushStack(pStack, "<tr><td></td>", 13);
+                *pState = 2;
             }
+			else
+			{
+                pushStack(pStack, "<tr><td>", 8);
+                *pState = 1;
+			}
             break;
         }
         default:
@@ -328,7 +337,7 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
     return *pState;
 }
 
-HRESULT SendConfigTable(poutStackBuffer pStack)
+HRESULT SendConfigTable(struct soap* pSoap, poutStackBuffer pStack)
 {
     HRESULT hr;
     const int BUFFER_SIZE = 128;
@@ -354,27 +363,21 @@ HRESULT SendConfigTable(poutStackBuffer pStack)
         int indexHtml = 0;
         for (int i = 0; i < dwBytesRead; i++)
         {
-            if (state == 0 || state == 2)
-            {
-                start = i;
-            }
-            switch (ConfigChangeState(pStack, &state, lpBuffer + i))
-            {
-                case 2: 
-                case 4:
-                {
-                    if (i - start > 0)
-                    {
-                        pushStack(pStack, lpBuffer + start, i - start);
-                    }
-                    break;
-                }
-                default: break;
-            }
+			switch (ConfigChangeState(pStack, &state, lpBuffer + i))
+			{
+				case 1:
+				case 3:
+				{
+					pushStack(pStack, lpBuffer + i);
+				}
+				default:
+					break;
+			}
         }
-        if (dwBytesRead - start > 0)
+		if (pStack->index > 0)
         {
-            pushStack(pStack, lpBuffer + start, dwBytesRead - start);
+			soap_send_raw(pSoap, pStack->pBuffer, pStack->index);
+			emptyStack(pStack);
         }
     } while (!(dwBytesRead < BUFFER_SIZE));
     pushStack(pStack, "</table>", strlen("</table>"));
@@ -576,7 +579,7 @@ int MyHttpGet(struct soap *soap)
                         {
                             pushed = i;
 							status = 0;
-							SendConfigTable(&bufStack);
+							SendConfigTable(soap, &bufStack);
 							break;
                         }
 						default:
