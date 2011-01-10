@@ -1,1 +1,3 @@
 //TODO: 1.½«gSoap±àÒë³É¾²Ì¬¿â
+# ruby code
+puts "Hello World!"

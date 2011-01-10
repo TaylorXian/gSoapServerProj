@@ -241,6 +241,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\outStackBuffer.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Resource.h"
 				>
 			</File>

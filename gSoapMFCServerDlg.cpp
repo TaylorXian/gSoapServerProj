@@ -6,6 +6,7 @@
 #include "gSoapMFCServerDlg.h"
 #include "soapH.h"
 #include "ns.nsmap"
+#include "outStackBuffer.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -251,13 +252,13 @@ HRESULT ReadFileToBuffer(HANDLE hFile, LPVOID read_buf, DWORD buf_len, LPDWORD l
     return hr;
 }
 
-int ConfigChangeState(struct soap * pSoap, int *pState, char *pCh)
+int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
 {
     switch(*pState)
     {
         case 0:
         {
-            soap_send(pSoap, "<tr><td>");
+            pushStack(pStack, "<tr><td>", 8);
             if (*pCh == '=')
             {
                 *pState = 2;
@@ -274,7 +275,7 @@ int ConfigChangeState(struct soap * pSoap, int *pState, char *pCh)
         }
         case 1:
         {
-            soap_send(pSoap, "</td>");
+            pushStack(pStack, "</td>", 5);
             if (*pCh == '=')
             {
                 *pState = 2;
@@ -287,7 +288,7 @@ int ConfigChangeState(struct soap * pSoap, int *pState, char *pCh)
         }
         case 2:
         {
-            soap_send(pSoap, "<td>");
+            pushStack(pStack, "<td>", 4);
             if (*pCh == '\r' || *pCh == '\n')
             {
                 *pState = 4;
@@ -300,7 +301,7 @@ int ConfigChangeState(struct soap * pSoap, int *pState, char *pCh)
         }
         case 3:
         {
-            soap_send(pSoap, "</td><td>=</td>");
+            pushStack(pStack, "</td><td>=</td>", 15);
             if (*pCh == '\r' || *pCh == '\n')
             {
                 *pState = 4;
@@ -312,7 +313,7 @@ int ConfigChangeState(struct soap * pSoap, int *pState, char *pCh)
         {
             if (*pCh != '\r' || *pCh != '\n')
             {
-                soap_send(pSoap, "</tr>");
+                pushStack(pStack, "</tr>", 5);
                 *pState = 0;
             }
             else if (*pState == 4 || *pState == 5)
@@ -327,7 +328,7 @@ int ConfigChangeState(struct soap * pSoap, int *pState, char *pCh)
     return *pState;
 }
 
-HRESULT SendConfigTable(struct soap *pSoap)
+HRESULT SendConfigTable(poutStackBuffer pStack)
 {
     HRESULT hr;
     const int BUFFER_SIZE = 128;
@@ -342,7 +343,7 @@ HRESULT SendConfigTable(struct soap *pSoap)
         ZeroMemory(lpBuffer, BUFFER_SIZE);
     }
 
-    soap_send(pSoap, "<table>");
+    pushStack(pStack, "<table>", 7);
     DWORD dwBytesRead = 0;
     int state = 0;
     do {
@@ -357,14 +358,14 @@ HRESULT SendConfigTable(struct soap *pSoap)
             {
                 start = i;
             }
-            switch (ConfigChangeState(pSoap, &state, lpBuffer + i))
+            switch (ConfigChangeState(pStack, &state, lpBuffer + i))
             {
                 case 2: 
                 case 4:
                 {
                     if (i - start > 0)
                     {
-                        soap_send_raw(pSoap, lpBuffer + start, i - start);
+                        pushStack(pStack, lpBuffer + start, i - start);
                     }
                     break;
                 }
@@ -373,10 +374,10 @@ HRESULT SendConfigTable(struct soap *pSoap)
         }
         if (dwBytesRead - start > 0)
         {
-            soap_send_raw(pSoap, lpBuffer + start, dwBytesRead - start);
+            pushStack(pStack, lpBuffer + start, dwBytesRead - start);
         }
     } while (!(dwBytesRead < BUFFER_SIZE));
-    soap_send_raw(pSoap, "</table>", strlen("</table>"));
+    pushStack(pStack, "</table>", strlen("</table>"));
     
     if (lpBuffer) 
     {
@@ -465,18 +466,15 @@ int ChangeState(int *pState, char *pCh)
     return *pState;
 }
 
-int MyHttpGet(struct soap *soap)
+HANDLE SelectFile(struct soap *soap)
 {
-    const int BUFFER_SIZE = 1024 * 8;
-    HRESULT hr = S_OK;
-    HANDLE hFile;
-    DWORD dwBytesRead = 0;
-    char read_buf[BUFFER_SIZE] = {0};
-    
-    switch (GetFileType(soap->path))
+	HANDLE hFile = INVALID_HANDLE_VALUE;
+	switch (GetFileType(soap->path))
     {
         // HTTP response header with text/html
-        case HTML: soap_response(soap, SOAP_HTML);
+        case HTML:
+		{
+			soap_response(soap, SOAP_HTML);
             if (strstr(soap->path, "test"))
             {
                 hFile = OpenWebFile(_T("./test.htm"));
@@ -486,14 +484,40 @@ int MyHttpGet(struct soap *soap)
                 hFile = OpenWebFile(_T("./index.htm"));
             }
             break;
-        case JS: soap_response(soap, SOAP_FILE);
+		}
+		case JS:
+		{
+			soap_response(soap, SOAP_FILE);
             hFile = OpenWebFile(_T("./jquery-1.4.4.min.js"));
             break;
-        case CSS: soap_response(soap, SOAP_FILE);
+		}
+        case CSS: 
+		{
+			soap_response(soap, SOAP_FILE);
             break;
-        default: soap_response(soap, SOAP_FILE);
+		}
+        default:
+		{
+			soap_response(soap, SOAP_FILE);
             hFile = OpenWebFile(_T("./ns.add.req.xml"));
+		}
     }
+
+	return hFile;
+}
+
+int MyHttpGet(struct soap *soap)
+{
+    const int BUFFER_SIZE = 1024 * 8;
+    HRESULT hr = S_OK;
+    HANDLE hFile;
+    DWORD dwBytesRead = 0;
+    char read_buf[BUFFER_SIZE] = {0};
+    outStackBuffer bufStack;
+	initStack(&bufStack, BUFFER_SIZE * 2);
+    
+	hFile = SelectFile(soap);
+
     if (hFile == INVALID_HANDLE_VALUE) 
     {
         hr = HRESULT_FROM_WIN32(::GetLastError());
@@ -501,6 +525,7 @@ int MyHttpGet(struct soap *soap)
     if (SUCCEEDED(hr))
     {
         int status = 0;
+		int pushed = -1;
         do {
             int start = -1;
             int end = -1;
@@ -515,34 +540,78 @@ int MyHttpGet(struct soap *soap)
                 {
                     switch (ChangeState(&status, read_buf + i))
                     {
+						case 0:
+						{
+							while (pushed < i)
+							{
+								pushed++;
+								if (pushed < 0)
+								{
+									pushStack(&bufStack, "<");
+								}
+								else
+								{
+									pushStack(&bufStack, read_buf + pushed);
+								}
+							}
+							break;
+						}
                         case 1:
                         {
-                            start = i;
+							if (pushed + 1 < i)
+							{
+								pushed++;
+								if (pushed < 0)
+								{
+									pushStack(&bufStack, "<");
+								}
+								else
+								{
+									pushStack(&bufStack, read_buf + pushed);
+								}
+							}
                             break;
                         }
-                        case 3:
+                        case 4:
                         {
-                            end = i + 2;
+                            pushed = i;
+							status = 0;
+							SendConfigTable(&bufStack);
+							break;
                         }
+						default:
+							break;
                     }
                 }
-                if (status == 0)
-                {
-                    soap_send_raw(soap, read_buf, dwBytesRead);
-                }
-                if (status > 0 && !(start < 0))
-                {
-                    soap_send_raw(soap, read_buf, start);
-                }
-                if (status > 3 && end > 0 && (dwBytesRead - end) > 0)
-                {
-                    SendConfigTable(soap);
-                    soap_send_raw(soap, read_buf + end, dwBytesRead - end);
-                }
-                if (status > 3 && start < 0 && end < 0)
-                {
-                    soap_send_raw(soap, read_buf, dwBytesRead);
-                }
+				if (status == 1)
+				{
+					pushed -= dwBytesRead;
+				}
+				else
+				{
+					pushed = -1;
+				}
+                //if (status == 0)
+                //{
+                //    soap_send_raw(soap, read_buf, dwBytesRead);
+                //}
+                //if (status > 0 && !(start < 0))
+                //{
+                //    soap_send_raw(soap, read_buf, start);
+                //}
+                //if (status > 3 && end > 0 && (dwBytesRead - end) > 0)
+                //{
+                //    soap_send_raw(soap, read_buf + end, dwBytesRead - end);
+                //}
+                //if (status > 3 && start < 0 && end < 0)
+                //{
+                //    soap_send_raw(soap, read_buf, dwBytesRead);
+                //}
+				if (bufStack.index > 0)
+				{
+					soap_send_raw(soap, bufStack.pBuffer, bufStack.index);
+					emptyStack(&bufStack);
+				}
             }
             else
             {
@@ -553,6 +622,7 @@ int MyHttpGet(struct soap *soap)
     soap_end_send(soap);
     CloseHandle(hFile);
 	WriteLog("MyHttpGet %s", soap->path);
+	deleteStack(&bufStack);
 
     return SOAP_OK;
 }
