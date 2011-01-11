@@ -201,7 +201,7 @@ void CgSoapMFCServerDlg::OnBnClickedStart()
 int ns__add(struct soap *calc_soap, double a, double b, double &result)
 {
     result = a + b;
-	WriteLog("a + b = %lf", a, b, result);
+	WriteLog("%lf + %lf = %lf", a, b, result);
     return SOAP_OK;
 }
 
@@ -513,8 +513,14 @@ HANDLE SelectFile(struct soap *soap)
         default:
 		{
 			soap_response(soap, SOAP_FILE);
-            //hFile = OpenWebFile(_T("./ns.winconfig.req.xml"));
-            hFile = OpenWebFile(_T("./ns.add.req.xml"));
+			if (rand() % 2 + 1)
+			{
+				hFile = OpenWebFile(_T("./ns.winconfig.req.xml"));
+			}
+			else
+			{
+				hFile = OpenWebFile(_T("./ns.add.req.xml"));
+			}
 		}
     }
 
