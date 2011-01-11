@@ -94,6 +94,10 @@ HANDLE WINAPI MyThread(LPTHREAD_START_ROUTINE lpStartAddress,
 					   LPDWORD lpThreadId,
 					   LPVOID lpParameter = NULL,
 					   DWORD dwCreationFlags = 0);
+HANDLE MyOpenFile(
+                LPCTSTR lpszFilename,
+                DWORD dwDesiredAccess, 
+                DWORD dwShareMode);
 void WriteLog(const char* info_format, ...);
 HRESULT GenerateConfigTable();
 void my_soap_init(struct soap *pSoap);
@@ -172,31 +176,6 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
     return 0;
 }
 
-
-
-void CgSoapMFCServerDlg::OnBnClickedStart()
-{
-    // TODO: Add your control notification handler code here
-    
-    //HRESULT hr = SendConfigTable();
-    if (!startSvr)
-    {
-        hSoapServerThd = MyThread(gSoapServer, &soapSvrThdid);
-    }
-    else
-    {
-		startSvr = false;
-		::MessageBox(0, 
-			_T("WebServer have been running!"), 
-			_T("Info"), MB_OK);
-		::MessageBox(0, 
-			_T("WebServer will be stoped!\nMaybe need another request!"), 
-			_T("Info"), MB_OK);
-    }
-    // StartgSoapServer(NULL);
-}
-
-
 // Implementation of the "add" service operation
 int ns__add(struct soap *calc_soap, double a, double b, double &result)
 {
@@ -210,7 +189,171 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
 {
     result = false;
 	WriteLog("%s = %s", key, value);
+	HANDLE hCfgFile = MyOpenFile(
+	                            _T("./test.ini"), //_T("./config.ini"),
+                                GENERIC_READ | GENERIC_WRITE,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE);
+    if (hCfgFile == INVALID_HANDLE_VALUE)
+    {
+        result = false;
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+    int FindKey(HANDLE, LPSTR, LPSTR);
+    int pFile = FindKey(hCfgFile, key, value);
+    
+    CloseHandle(hCfgFile);
+    
     return SOAP_OK;
+}
+
+int FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
+{
+    const int BUFFER_SIZE = 128;
+    outStackBuffer stack;
+    initStack(&stack, (strlen(val) + BUFFER_SIZE) * 2);
+    LPSTR pBuffer = new CHAR[BUFFER_SIZE];
+    LPSTR pKey = key;
+    DWORD dwBytesRead = 0;
+    DWORD dwBytesWritten = 0;
+    bool find = false;
+    bool end = false;
+    int i = 0;
+    DWORD rStart = 0;
+    DWORD wStart = 0;
+    //SetFilePointer();
+    do {
+        i = 0;
+        dwBytesRead = 0;
+        dwBytesWritten = 0;
+        ZeroMemory(pBuffer, BUFFER_SIZE);
+        if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
+        {
+            // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
+            
+            for (i = 0; i < dwBytesRead; i++)
+            {
+                if (find)
+                {
+                    switch(*(pBuffer + i))
+                    {
+                        case ' ':
+                        case '\t':
+                        {
+                            break;
+                        }
+                        case '=':
+                        case '\r':
+                        case '\n':
+                        {
+                            rStart = SetFilePointer(hCfgFile, 0, NULL, FILE_CURRENT) - dwBytesRead + i + 1;
+                            break;
+                        }
+                        default:
+                        {
+                            if (rStart == 0)
+                            {
+                                find = false;
+                                i--;
+                                pKey = key;
+                            }
+                            else
+                            {
+                                end = true;
+                            }
+                        }
+                    }
+                    if (end)
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    wStart = 0;
+                    rStart = 0;
+                    if (*(pBuffer + i) == *pKey)
+                    {
+                        pKey++;
+                        if (*pKey == '\0')
+                        {
+                            find = true;
+                            wStart = SetFilePointer(hCfgFile, 0, NULL, FILE_CURRENT) - dwBytesRead + i + 1;
+                        }
+                    }
+                    else
+                    {
+                        pKey = key;
+                    }
+                }
+            }
+        }
+        if (end)
+        {
+            break;
+        }
+    } while (!(dwBytesRead < BUFFER_SIZE - 1));
+    pushStack(&stack, val, strlen(val));
+    pushStack(&stack, "\r");
+    pushStack(&stack, "\n");
+    do {
+        SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
+        i = 0;
+        dwBytesRead = 0;
+        dwBytesWritten = 0;
+        ZeroMemory(pBuffer, BUFFER_SIZE);
+        if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
+        {
+            // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
+            rStart += dwBytesRead;
+            if (rStart - wStart > stack.index && stack.index > 0)
+            {
+                SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
+                if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+                {
+                    wStart += dwBytesWritten;
+                    emptyStack(&stack);
+                }
+            }
+            pushStack(&stack, pBuffer, dwBytesRead);
+        }
+    } while (!(dwBytesRead < BUFFER_SIZE - 1));
+    if (stack.index > 0)
+    {
+        if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+        {
+            wStart += dwBytesWritten;
+            emptyStack(&stack);
+        }
+    }
+    delete[] pBuffer;
+    deleteStack(&stack);
+    return NULL;
+}
+
+
+void CgSoapMFCServerDlg::OnBnClickedStart()
+{
+    // TODO: Add your control notification handler code here
+    
+    struct soap s;
+    bool b;
+    HRESULT hr = ns__winconfig(&s, "TFTPServerIP", "", b);
+    //HRESULT hr = SendConfigTable();
+  //  if (!startSvr)
+  //  {
+  //      hSoapServerThd = MyThread(gSoapServer, &soapSvrThdid);
+  //  }
+  //  else
+  //  {
+		//startSvr = false;
+		//::MessageBox(0, 
+		//	_T("WebServer have been running!"), 
+		//	_T("Info"), MB_OK);
+		//::MessageBox(0, 
+		//	_T("WebServer will be stoped!\nMaybe need another request!"), 
+		//	_T("Info"), MB_OK);
+  //  }
+    // StartgSoapServer(NULL);
 }
 
 void WriteLog(const char* info_format, ...)
@@ -236,15 +379,26 @@ void SoapErr(struct soap *soap)
     soap_print_fault(soap, stderr);
 }
 
+HANDLE MyOpenFile(
+                LPCTSTR lpszFilename,
+                DWORD dwDesiredAccess, 
+                DWORD dwShareMode)
+{
+    return CreateFile(
+                    lpszFilename, 
+                    dwDesiredAccess,
+                    dwShareMode,
+                    NULL,
+                    OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL,
+                    NULL);
+}
+
 HANDLE OpenWebFile(LPCTSTR lpszFilename)
 {
-    return CreateFile(lpszFilename, 
-    GENERIC_READ,
-    FILE_SHARE_READ,
-    NULL,
-    OPEN_EXISTING,
-    FILE_ATTRIBUTE_NORMAL,
-    NULL);
+    return MyOpenFile(lpszFilename, 
+                    GENERIC_READ,
+                    FILE_SHARE_READ);
 }
 
 HRESULT ReadFileToBuffer(HANDLE hFile, LPVOID read_buf, DWORD buf_len, LPDWORD lpdwBytesRead)
