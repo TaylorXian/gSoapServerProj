@@ -123,9 +123,6 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
 	// soap init
 	soap_init(&calc_soap);
 	my_soap_init(&calc_soap);
-	soap_clr_mode(&calc_soap, SOAP_C_UTFSTRING);
-	soap_set_mode(&calc_soap, SOAP_C_MBSTRING);
-	soap_omode(&calc_soap, SOAP_C_MBSTRING);
 
 	// 
 	m = soap_bind(&calc_soap, 
@@ -156,9 +153,9 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
 				soapSvrThdid, s, (calc_soap.ip >> 24) & 0xFF, 
 				(calc_soap.ip >> 16) & 0xFF, 
 				(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF, i++);
-			soap_clr_mode(&calc_soap, SOAP_C_UTFSTRING);
-			soap_set_mode(&calc_soap, SOAP_C_MBSTRING);
-			soap_omode(&calc_soap, SOAP_C_MBSTRING);
+			//soap_clr_mode(&calc_soap, SOAP_C_UTFSTRING);
+			//soap_set_mode(&calc_soap, SOAP_C_MBSTRING);
+			//soap_omode(&calc_soap, SOAP_C_MBSTRING);
 
             // process RPC request
 			if (soap_serve(&calc_soap) != SOAP_OK)
@@ -643,15 +640,14 @@ int ChangeState(int *pState, char *pCh)
     return *pState;
 }
 
-HANDLE SelectFile(struct soap *soap)
+HANDLE SelectFile(struct soap *soap, FileType ft)
 {
 	HANDLE hFile = INVALID_HANDLE_VALUE;
-	switch (GetFileType(soap->path))
+	switch (ft)
     {
         // HTTP response header with text/html
         case HTML:
 		{
-			soap_response(soap, SOAP_HTML);
             if (strstr(soap->path, "test"))
             {
                 hFile = OpenWebFile(_T("./test.htm"));
@@ -664,19 +660,16 @@ HANDLE SelectFile(struct soap *soap)
 		}
 		case JS:
 		{
-			soap_response(soap, SOAP_FILE);
             hFile = OpenWebFile(_T("./jquery-1.4.4.min.js"));
             break;
 		}
         case CSS: 
 		{
-			soap_response(soap, SOAP_FILE);
 			hFile = OpenWebFile(_T("./main.css"));
             break;
 		}
         default:
 		{
-			soap_response(soap, SOAP_FILE);
 			if (rand() % 2 + 1)
 			{
 				hFile = OpenWebFile(_T("./ns.winconfig.req.xml"));
@@ -701,7 +694,10 @@ int MyHttpGet(struct soap *soap)
     outStackBuffer bufStack;
 	initStack(&bufStack, BUFFER_SIZE * 2);
     
-	hFile = SelectFile(soap);
+	soap_response(soap, SOAP_FILE);
+	soap->http_content = "text/html; charset=gb2312";
+	FileType ft = GetFileType(soap->path);
+	hFile = SelectFile(soap, ft);
 
     if (hFile == INVALID_HANDLE_VALUE) 
     {
@@ -718,7 +714,7 @@ int MyHttpGet(struct soap *soap)
                 read_buf, 
                 BUFFER_SIZE, 
                 &dwBytesRead);
-            if (soap->status == SOAP_HTML)
+            if (ft == HTML)
             {
                 // search for <% %>
                 for (int i = 0; i < dwBytesRead; i++)
@@ -856,8 +852,9 @@ void my_soap_init(struct soap *pSoap)
 	//pSoap->tc
 	//pSoap->accept_timeout = 0;  无限等待连接请求
 	//pSoap->max_keep_alive = 100;
-	soap_clr_mode(pSoap, SOAP_C_UTFSTRING);
-	soap_set_mode(pSoap, SOAP_C_MBSTRING);
+	//soap_clr_mode(pSoap, SOAP_C_UTFSTRING);
+	//soap_set_mode(pSoap, SOAP_C_MBSTRING);
+	//soap_omode(&calc_soap, SOAP_C_MBSTRING);
 	pSoap->fget = MyHttpGet;
 }
 

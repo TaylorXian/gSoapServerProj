@@ -1,41 +1,61 @@
 body {
     background-color: Transparent;
     font-size: 12pt;
-    text-align: center;
-    vertical-align: middle;
     margin: 0;
     padding: 0;
+    text-align: center;
+    vertical-align: middle;
 }
-
 div {
     display: block;
-    min-width: 800px;
     width: 100%;
 }
-
 table {
     margin: 0 auto;
     width: 72%;
+    text-align: center;
+    border-collapse: collapse;
 }
-
+#container
+{
+    background: #FDFDFD;
+}
 #header {
+    padding: 36px;
     min-height: 50px;
 }
-
 #main {
     min-height: 360px;
 }
-
 div.line {
     line-height: 120%;
+    clear: left;
 }
-
+div.invisible
+{
+    position: fixed;
+    display: none;
+    width: 360px;
+    height: 120px;
+    background: #FFFFBB;
+    border: 2px solid blue;
+    z-index: 1000;
+}
+div.invisible > input
+{
+    width: 120px;
+}
+div.invisible > label
+{
+    width: inherit;
+}
 table td {
     border: 1px solid gray;
-    border-collapse: collapse;
 }
-
 #footer {
     clear: both;
     min-height: 25px;
+}
+#footer > label {
+    font-size: 0.8em;
 }
