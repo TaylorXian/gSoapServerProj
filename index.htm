@@ -1,12 +1,13 @@
 <html>
 <head>
+    <meta content="text/html; charset=gb2312" http-equiv="content-type" />
     <meta name="GENERATOR" content="Microsoft Visual Studio 8.0" />
     <title>My name is gSoap Server Test.</title>
+    <link rel="Stylesheet" type="text/css" media="screen" href="./main.css" />
 
     <script type="text/javascript" src="http://code.jquery.com/jquery-latest.js"></script>
 
     <script type="text/javascript">
-        document.write('Hello' + '<br />');
         var soap_req;
         $(document).ready(function() {
             $('#btn').click(function() {
@@ -71,35 +72,20 @@
         }
         .mo
         {
-        	background-color: Gray;
-        }
-        div.line
-        {
-        	margin: 50px auto;
-        	padding: 0px 5px 0px 25px;
-            display: block;
-            min-width: 360px;
-            text-align: right;
-            line-height: 120%;
-            vertical-align: middle;
-        }
-        table td
-        {
-        	border: solid 1px black;
-        	min-width: 120px;
-        	text-align: justify;
+            background-color: Gray;
         }
     </style>
 </head>
 <body>
-    <form>
-    <h4>
-        Web server is operational.</h4>
-    <input type="button" value="click me get soap data" name="web" id="btnGetRequestSoapData" />
-    <input type="button" value="click me call web service" name="web" id="btn" />
-    <label>this is a label.</label>
-    <div class="line" style="display: block;">
-        <% <table>
+    <div id="container">
+        <div id="header">
+            <h2>WinCE Web Service ConfigFile Management</h2>
+        </div>
+        <div id="main">
+            <form>
+            <input type="hidden" value="click me get soap data" name="web" id="btnGetRequestSoapData" />
+            <input type="hidden" value="click me call web service" name="web" id="btn" />
+            <div class="line"><% <table>
             <tr>
                 <td>
                     <span id="" class="attrname">attrname</span>
@@ -107,12 +93,16 @@
                 <td>
                     <input type="text" value="" name="" id="" />
                 </td>
-            </tr>
-        </table>%>
+            </tr></table>%>
+            </div>
+            <div>
+                <input type="button" value="click me get table" name="web" id="btnGetTable" />
+            </div>
+            </form>
+        </div>
+        <div id="footer">
+        <label>email: taylorsaltfish@gmail.com 提供技术支持。</label>
+        </div>
     </div>
-    <div>
-        <input type="button" value="click me get table" name="web" id="btnGetTable" />
-    </div>
-    </form>
 </body>
 </html>

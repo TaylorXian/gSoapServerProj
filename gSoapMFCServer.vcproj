@@ -308,6 +308,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\main.css"
+				>
+			</File>
+			<File
 				RelativePath=".\test.htm"
 				DeploymentContent="true"
 				>

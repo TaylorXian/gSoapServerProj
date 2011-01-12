@@ -1,0 +1,41 @@
+body {
+    background-color: Transparent;
+    font-size: 12pt;
+    text-align: center;
+    vertical-align: middle;
+    margin: 0;
+    padding: 0;
+}
+
+div {
+    display: block;
+    min-width: 800px;
+    width: 100%;
+}
+
+table {
+    margin: 0 auto;
+    width: 72%;
+}
+
+#header {
+    min-height: 50px;
+}
+
+#main {
+    min-height: 360px;
+}
+
+div.line {
+    line-height: 120%;
+}
+
+table td {
+    border: 1px solid gray;
+    border-collapse: collapse;
+}
+
+#footer {
+    clear: both;
+    min-height: 25px;
+}

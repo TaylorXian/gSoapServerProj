@@ -123,7 +123,10 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
 	// soap init
 	soap_init(&calc_soap);
 	my_soap_init(&calc_soap);
-	
+	soap_clr_mode(&calc_soap, SOAP_C_UTFSTRING);
+	soap_set_mode(&calc_soap, SOAP_C_MBSTRING);
+	soap_omode(&calc_soap, SOAP_C_MBSTRING);
+
 	// 
 	m = soap_bind(&calc_soap, 
 	    NULL, // 任何IP地址都可以访问
@@ -153,6 +156,10 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
 				soapSvrThdid, s, (calc_soap.ip >> 24) & 0xFF, 
 				(calc_soap.ip >> 16) & 0xFF, 
 				(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF, i++);
+			soap_clr_mode(&calc_soap, SOAP_C_UTFSTRING);
+			soap_set_mode(&calc_soap, SOAP_C_MBSTRING);
+			soap_omode(&calc_soap, SOAP_C_MBSTRING);
+
             // process RPC request
 			if (soap_serve(&calc_soap) != SOAP_OK)
 			{}
@@ -335,24 +342,26 @@ void CgSoapMFCServerDlg::OnBnClickedStart()
 {
     // TODO: Add your control notification handler code here
     
-    struct soap s;
-    bool b;
-    HRESULT hr = ns__winconfig(&s, "TFTPServerIP", "", b);
+    if (!startSvr)
+    {
+        hSoapServerThd = MyThread(gSoapServer, &soapSvrThdid);
+    }
+    else
+    {
+		startSvr = false;
+		::MessageBox(0, 
+			_T("WebServer have been running!"), 
+			_T("Info"), MB_OK);
+		::MessageBox(0, 
+			_T("WebServer will be stoped!\nMaybe need another request!"), 
+			_T("Info"), MB_OK);
+    }
+
+    //struct soap s;
+    //bool b;
+    //HRESULT hr = ns__winconfig(&s, "TFTPServerIP", "", b);
     //HRESULT hr = SendConfigTable();
-  //  if (!startSvr)
-  //  {
-  //      hSoapServerThd = MyThread(gSoapServer, &soapSvrThdid);
-  //  }
-  //  else
-  //  {
-		//startSvr = false;
-		//::MessageBox(0, 
-		//	_T("WebServer have been running!"), 
-		//	_T("Info"), MB_OK);
-		//::MessageBox(0, 
-		//	_T("WebServer will be stoped!\nMaybe need another request!"), 
-		//	_T("Info"), MB_OK);
-  //  }
+
     // StartgSoapServer(NULL);
 }
 
@@ -662,6 +671,7 @@ HANDLE SelectFile(struct soap *soap)
         case CSS: 
 		{
 			soap_response(soap, SOAP_FILE);
+			hFile = OpenWebFile(_T("./main.css"));
             break;
 		}
         default:
@@ -846,6 +856,8 @@ void my_soap_init(struct soap *pSoap)
 	//pSoap->tc
 	//pSoap->accept_timeout = 0;  无限等待连接请求
 	//pSoap->max_keep_alive = 100;
+	soap_clr_mode(pSoap, SOAP_C_UTFSTRING);
+	soap_set_mode(pSoap, SOAP_C_MBSTRING);
 	pSoap->fget = MyHttpGet;
 }
 
