@@ -193,6 +193,11 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
 {
     result = false;
 	WriteLog("%s = %s", key, value);
+	if (strlen(key) == 0)
+	{
+        result = false;
+        return -1;
+	}
 	HANDLE hCfgFile = MyOpenFile(
 	                            _T("./test.ini"), //_T("./config.ini"),
                                 GENERIC_READ | GENERIC_WRITE,
@@ -202,19 +207,27 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
         result = false;
         return HRESULT_FROM_WIN32(GetLastError());
     }
-    int FindKey(HANDLE, LPSTR, LPSTR);
-    int pFile = FindKey(hCfgFile, key, value);
-    
+    DWORD FindKey(HANDLE, LPSTR, LPSTR);
+    DWORD pFile = FindKey(hCfgFile, key, value);
     CloseHandle(hCfgFile);
+    if (pFile == 0)
+    {
+        result = false;
+    }
+    else
+    {
+        result = true;
+    }
     
     return SOAP_OK;
 }
 
-int FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
+DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
 {
+    int ConfigChangeState(int*, char*);
     const int BUFFER_SIZE = 128;
     outStackBuffer stack;
-    initStack(&stack, (strlen(val) + BUFFER_SIZE) * 2);
+    initStack(&stack, (strlen(key) + strlen(val) + BUFFER_SIZE) * 2);
     LPSTR pBuffer = new CHAR[BUFFER_SIZE];
     LPSTR pKey = key;
     DWORD dwBytesRead = 0;
@@ -224,6 +237,7 @@ int FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
     int i = 0;
     DWORD rStart = 0;
     DWORD wStart = 0;
+    int status = 0;
     //SetFilePointer();
     do {
         i = 0;
@@ -236,56 +250,53 @@ int FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
             
             for (i = 0; i < dwBytesRead; i++)
             {
+                ConfigChangeState(&status, pBuffer + i);
                 if (find)
                 {
-                    switch(*(pBuffer + i))
+                    switch(status)
                     {
-                        case ' ':
-                        case '\t':
+                        case 1:
                         {
-                            break;
-                        }
-                        case '=':
-                        case '\r':
-                        case '\n':
-                        {
-                            rStart = SetFilePointer(hCfgFile, 0, NULL, FILE_CURRENT) - dwBytesRead + i + 1;
+                            if (end)
+                            {
+                                rStart = SetFilePointer(hCfgFile, 0, NULL, FILE_CURRENT) - dwBytesRead + i;
+                            }
+                            else
+                            {
+                                if (*(pBuffer + i) != ' ' || *(pBuffer + i) != '\t')
+                                {
+                                    find = false;
+                                }
+                            }
                             break;
                         }
                         default:
                         {
-                            if (rStart == 0)
-                            {
-                                find = false;
-                                i--;
-                                pKey = key;
-                            }
-                            else
-                            {
-                                end = true;
-                            }
+                            end = true;
                         }
                     }
-                    if (end)
+                    if (rStart)
                     {
                         break;
                     }
                 }
                 else
                 {
-                    wStart = 0;
-                    rStart = 0;
-                    if (*(pBuffer + i) == *pKey)
+                    if (*(pBuffer + i) == *pKey++)
                     {
-                        pKey++;
                         if (*pKey == '\0')
                         {
                             find = true;
-                            wStart = SetFilePointer(hCfgFile, 0, NULL, FILE_CURRENT) - dwBytesRead + i + 1;
                         }
+                        if (wStart == 0)
+                        {
+                            wStart = SetFilePointer(hCfgFile, 0, NULL, FILE_CURRENT) - dwBytesRead + i;
+                        }    
                     }
                     else
                     {
+                        wStart = 0;
+                        rStart = 0;
                         pKey = key;
                     }
                 }
@@ -296,31 +307,36 @@ int FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
             break;
         }
     } while (!(dwBytesRead < BUFFER_SIZE - 1));
+    pushStack(&stack, key, strlen(key));
+    pushStack(&stack, "=");
     pushStack(&stack, val, strlen(val));
     pushStack(&stack, "\r");
     pushStack(&stack, "\n");
-    do {
-        SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
-        i = 0;
-        dwBytesRead = 0;
-        dwBytesWritten = 0;
-        ZeroMemory(pBuffer, BUFFER_SIZE);
-        if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
-        {
-            // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
-            rStart += dwBytesRead;
-            if (rStart - wStart > stack.index && stack.index > 0)
+    if (find)
+    {
+        do {
+            SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
+            i = 0;
+            dwBytesRead = 0;
+            dwBytesWritten = 0;
+            ZeroMemory(pBuffer, BUFFER_SIZE);
+            if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
             {
-                SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
-                if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+                // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
+                rStart += dwBytesRead;
+                if (rStart - wStart > stack.index && stack.index > 0)
                 {
-                    wStart += dwBytesWritten;
-                    emptyStack(&stack);
+                    SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
+                    if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+                    {
+                        wStart += dwBytesWritten;
+                        emptyStack(&stack);
+                    }
                 }
+                pushStack(&stack, pBuffer, dwBytesRead);
             }
-            pushStack(&stack, pBuffer, dwBytesRead);
-        }
-    } while (!(dwBytesRead < BUFFER_SIZE - 1));
+        } while (!(dwBytesRead < BUFFER_SIZE - 1));
+    }
     if (stack.index > 0)
     {
         if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
@@ -331,7 +347,7 @@ int FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
     }
     delete[] pBuffer;
     deleteStack(&stack);
-    return NULL;
+    return dwBytesWritten;
 }
 
 
@@ -420,7 +436,7 @@ HRESULT ReadFileToBuffer(HANDLE hFile, LPVOID read_buf, DWORD buf_len, LPDWORD l
     return hr;
 }
 
-int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
+int ConfigChangeState(int *pState, char *pCh)
 {
     switch(*pState)
     {
@@ -428,16 +444,14 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
         {
             if (*pCh == '=')
             {
-				pushStack(pStack, "<tr><td></td>", 13);
                 *pState = 2;
             }
             else if (*pCh == '\r' || *pCh == '\n')
             {
-                *pState = 4;
+                // *pState = 4;
             }
             else
             {
-				pushStack(pStack, "<tr><td>", 8);
                 *pState = 1;
             }
             break;
@@ -446,12 +460,10 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
         {
             if (*pCh == '=')
             {
-				pushStack(pStack, "</td>", 5);
                 *pState = 2;
             }
             else if (*pCh == '\r' || *pCh == '\n')
             {
-				pushStack(pStack, "</td><td>=</td><td></td></tr>", 29);
                 *pState = 4;
             }
             break;
@@ -460,14 +472,10 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
         {
             if (*pCh == '\r' || *pCh == '\n')
             {
-				pushStack(pStack, "<td>=</td><td></td></tr>", 24);
                 *pState = 4;
             }
             else if (*pCh != '=')
             {
-				//LPCSTR html= "<td>=</td><td><input type='text' value='";
-				LPCSTR html= "<td>=</td><td>";
-				pushStack(pStack, html, strlen(html));
                 *pState = 3;
             }
             break;
@@ -476,9 +484,6 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
         {
             if (*pCh == '\r' || *pCh == '\n')
             {
-				//LPCSTR html = "' name='web' id='btn' /></td></tr>";
-				LPCSTR html = "</td></tr>";
-				pushStack(pStack, html, strlen(html));
                 *pState = 4;
             }
             break;
@@ -491,18 +496,113 @@ int ConfigChangeState(poutStackBuffer pStack, int *pState, char *pCh)
             }
             else if (*pState == '=')
             {
-                pushStack(pStack, "<tr><td></td>", 13);
                 *pState = 2;
             }
 			else
 			{
-                pushStack(pStack, "<tr><td>", 8);
                 *pState = 1;
 			}
             break;
         }
-        default:
-            return *pState;
+        default: {}
+    }
+    return *pState;
+}
+
+int PushStackAsStateChanged(poutStackBuffer pStack, int *pState, char *pCh)
+{
+    int preState = *pState;
+    ConfigChangeState(pState, pCh);
+    switch (preState)
+    {
+        case 0:
+        {
+            switch (*pState)
+            {
+                case 1:
+                {
+    				pushStack(pStack, "<tr><td>", 8);
+                    break;
+                }
+                case 2:
+                {
+    				pushStack(pStack, "<tr><td></td>", 13);
+                    break;
+                }
+                default: {}
+            }
+            break;
+        }
+        case 1:
+        {
+            switch (*pState)
+            {
+                case 2:
+                {
+    				pushStack(pStack, "</td>", 5);
+                    break;
+                }
+                case 4:
+                {
+    				pushStack(pStack, "</td><td>=</td><td></td></tr>", 29);
+                    break;
+                }
+                default: {}
+            }
+            break;
+        }
+        case 2:
+        {
+            switch (*pState)
+            {
+                case 3:
+                {
+				    LPCSTR html= "<td>=</td><td>";
+				    pushStack(pStack, html, strlen(html));
+                    break;
+                }
+                case 4:
+                {
+    				pushStack(pStack, "<td>=</td><td></td></tr>", 24);
+                    break;
+                }
+                default: {}
+            }
+            break;
+        }
+        case 3:
+        {
+            switch (*pState)
+            {
+                case 4:
+                {
+				    LPCSTR html = "</td></tr>";
+				    pushStack(pStack, html, strlen(html));
+                    break;
+                }
+                default: {}
+            }
+            break;
+        }
+        case 4:
+        {
+            switch (*pState)
+            {
+                case 1:
+                {
+                    pushStack(pStack, "<tr><td>", 8);
+                    break;
+                }
+                case 2:
+                {
+                    pushStack(pStack, "<tr><td></td>", 13);
+                    break;
+                }
+                default: {}
+            }
+            break;
+        }
+        default: {}
     }
     return *pState;
 }
@@ -534,7 +634,7 @@ HRESULT SendConfigTable(struct soap* pSoap, poutStackBuffer pStack)
         int indexHtml = 0;
         for (int i = 0; i < dwBytesRead; i++)
         {
-			switch (ConfigChangeState(pStack, &state, lpBuffer + i))
+			switch (PushStackAsStateChanged(pStack, &state, lpBuffer + i))
 			{
 				case 1:
 				case 3:
@@ -660,7 +760,14 @@ HANDLE SelectFile(struct soap *soap, FileType ft)
 		}
 		case JS:
 		{
-            hFile = OpenWebFile(_T("./jquery-1.4.4.min.js"));
+		    if (strstr(soap->path, "main"))
+		    {
+                hFile = OpenWebFile(_T("./main.js"));
+		    }
+		    else
+		    {
+                hFile = OpenWebFile(_T("./jquery-1.4.4.min.js"));
+            }
             break;
 		}
         case CSS: 
