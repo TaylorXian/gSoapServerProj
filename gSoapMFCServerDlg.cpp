@@ -255,6 +255,7 @@ DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
                 {
                     switch(status)
                     {
+						case 0:
                         case 1:
                         {
                             if (end)
@@ -282,8 +283,9 @@ DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
                 }
                 else
                 {
-                    if (*(pBuffer + i) == *pKey++)
+                    if (*(pBuffer + i) == *pKey)
                     {
+						pKey++;
                         if (*pKey == '\0')
                         {
                             find = true;
