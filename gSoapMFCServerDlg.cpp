@@ -102,6 +102,7 @@ void WriteLog(const char* info_format, ...);
 HRESULT GenerateConfigTable();
 void my_soap_init(struct soap *pSoap);
 void SoapErr(struct soap *soap);
+LPCTSTR pszCfgFile = _T("./test.ini");
 HANDLE hSoapServerThd = NULL;
 DWORD soapSvrThdid;
 BOOL startSvr = false;
@@ -199,7 +200,7 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
         return -1;
 	}
 	HANDLE hCfgFile = MyOpenFile(
-	                            _T("./test.ini"), //_T("./config.ini"),
+	                            pszCfgFile, 
                                 GENERIC_READ | GENERIC_WRITE,
                                 FILE_SHARE_READ | FILE_SHARE_WRITE);
     if (hCfgFile == INVALID_HANDLE_VALUE)
@@ -222,6 +223,11 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
     return SOAP_OK;
 }
 
+DWORD GetFileCurrentPointer(HANDLE hFile)
+{
+    return SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
+}
+
 DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
 {
     int ConfigChangeState(int*, char*);
@@ -235,10 +241,15 @@ DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
     bool find = false;
     bool end = false;
     int i = 0;
-    DWORD rStart = 0;
-    DWORD wStart = 0;
+    int rStart = -1;
+    int wStart = -1;
     int status = 0;
     //SetFilePointer();
+    pushStack(&stack, key, strlen(key));
+    pushStack(&stack, "=");
+    pushStack(&stack, val, strlen(val));
+    pushStack(&stack, "\r");
+    pushStack(&stack, "\n");
     do {
         i = 0;
         dwBytesRead = 0;
@@ -247,7 +258,7 @@ DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
         if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
         {
             // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
-            
+            rStart = GetFileCurrentPointer(hCfgFile);
             for (i = 0; i < dwBytesRead; i++)
             {
                 ConfigChangeState(&status, pBuffer + i);
@@ -256,29 +267,40 @@ DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
                     switch(status)
                     {
 						case 0:
+                        {
+                            if (end)
+                            {
+                                pushStack(&stack, pBuffer + i);
+						    }
+						    else
+						    {
+						        end = true;
+						    }
+						    break;
+                        }
                         case 1:
                         {
                             if (end)
                             {
-                                rStart = SetFilePointer(hCfgFile, 0, NULL, FILE_CURRENT) - dwBytesRead + i;
+                                pushStack(&stack, pBuffer + i);
                             }
                             else
                             {
                                 if (*(pBuffer + i) != ' ' || *(pBuffer + i) != '\t')
                                 {
                                     find = false;
+                                    end = false;
                                 }
                             }
                             break;
                         }
                         default:
                         {
-                            end = true;
+                            if (end)
+                            {
+                                pushStack(&stack, pBuffer + i);
+                            }
                         }
-                    }
-                    if (rStart)
-                    {
-                        break;
                     }
                 }
                 else
@@ -290,55 +312,31 @@ DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
                         {
                             find = true;
                         }
-                        if (wStart == 0)
+                        if (wStart < 0)
                         {
-                            wStart = SetFilePointer(hCfgFile, 0, NULL, FILE_CURRENT) - dwBytesRead + i;
+                            wStart = GetFileCurrentPointer(hCfgFile) - dwBytesRead + i;
                         }    
                     }
                     else
                     {
-                        wStart = 0;
-                        rStart = 0;
+                        wStart = -1;
+                        rStart = -1;
                         pKey = key;
                     }
                 }
             }
-        }
-        if (end)
-        {
-            break;
+            if (find && end && ((wStart + stack.index < rStart) || (dwBytesRead < BUFFER_SIZE - 1)))
+            {
+                SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
+                if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+                {
+                    wStart += dwBytesWritten;
+                    emptyStack(&stack);
+                }
+                SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
+            }
         }
     } while (!(dwBytesRead < BUFFER_SIZE - 1));
-    pushStack(&stack, key, strlen(key));
-    pushStack(&stack, "=");
-    pushStack(&stack, val, strlen(val));
-    pushStack(&stack, "\r");
-    pushStack(&stack, "\n");
-    if (find)
-    {
-        do {
-            SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
-            i = 0;
-            dwBytesRead = 0;
-            dwBytesWritten = 0;
-            ZeroMemory(pBuffer, BUFFER_SIZE);
-            if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
-            {
-                // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
-                rStart += dwBytesRead;
-                if (rStart - wStart > stack.index && stack.index > 0)
-                {
-                    SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
-                    if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
-                    {
-                        wStart += dwBytesWritten;
-                        emptyStack(&stack);
-                    }
-                }
-                pushStack(&stack, pBuffer, dwBytesRead);
-            }
-        } while (!(dwBytesRead < BUFFER_SIZE - 1));
-    }
     if (stack.index > 0)
     {
         if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
@@ -613,7 +611,7 @@ HRESULT SendConfigTable(struct soap* pSoap, poutStackBuffer pStack)
 {
     HRESULT hr;
     const int BUFFER_SIZE = 128;
-    HANDLE hCfgFile = OpenWebFile(_T("./config.ini"));
+    HANDLE hCfgFile = OpenWebFile(pszCfgFile);
     if (hCfgFile == INVALID_HANDLE_VALUE) 
     {
         hr = HRESULT_FROM_WIN32(::GetLastError());
