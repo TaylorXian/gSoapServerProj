@@ -380,13 +380,17 @@ void CgSoapMFCServerDlg::OnBnClickedStart()
 
 void WriteLog(const char* info_format, ...)
 {
+    SYSTEMTIME timeNow;
+    GetLocalTime(&timeNow);
 	va_list arg_ptr;
 	va_start(arg_ptr, info_format);
     FILE *pfLog;
-    time_t t;
-    time(&t);
+    //time_t t;
+    //time(&t);
     char time_str[64] = {0};
-    strftime(time_str, sizeof(time_str), "%Y/%m/%d %H:%M:%S %z...", localtime(&t));
+    sprintf(time_str, "%4d/%2d/%2d %2d:%2d:%2d %4dms ... ", timeNow.wYear, timeNow.wMonth, timeNow.wDay,
+        timeNow.wHour, timeNow.wMinute, timeNow.wSecond, timeNow.wMilliseconds);
+    //strftime(time_str, sizeof(time_str), "%Y/%m/%d %H:%M:%S %z...", localtime(&t));
 	pfLog = fopen("soap.log", "a+");
 	fprintf(pfLog, "%s", time_str);
 	vfprintf(pfLog, info_format, arg_ptr);
