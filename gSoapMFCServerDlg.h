@@ -29,4 +29,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
     afx_msg void OnBnClickedStart();
+    afx_msg void OnTestClicked();
+    afx_msg void OnClickedCreateConsole();
+    afx_msg void OnClickedFreeConsole();
 };

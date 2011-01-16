@@ -233,11 +233,31 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\alltests.h"
+				>
+			</File>
+			<File
 				RelativePath=".\gSoapMFCServer.h"
 				>
 			</File>
 			<File
 				RelativePath=".\gSoapMFCServerDlg.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MyFileParser.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MygSoapGetProcess.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MygSoapUtil.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MyUtil.h"
 				>
 			</File>
 			<File

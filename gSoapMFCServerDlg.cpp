@@ -7,6 +7,9 @@
 #include "soapH.h"
 #include "ns.nsmap"
 #include "outStackBuffer.h"
+#include "MyUtil.h"
+#include "MyFileParser.h"
+#include "alltests.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -34,7 +37,10 @@ BEGIN_MESSAGE_MAP(CgSoapMFCServerDlg, CDialog)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	//}}AFX_MSG_MAP
-    ON_BN_CLICKED(IDC_BUTTON1, &CgSoapMFCServerDlg::OnBnClickedStart)
+    ON_BN_CLICKED(IDC_BTN_START_SERVER, &CgSoapMFCServerDlg::OnBnClickedStart)
+    ON_BN_CLICKED(IDC_BTN_RUN_TESTS, &CgSoapMFCServerDlg::OnTestClicked)
+    ON_BN_CLICKED(IDC_BTN_ALLOC_CONSOLE, &CgSoapMFCServerDlg::OnClickedCreateConsole)
+    ON_BN_CLICKED(IDC_BTN_FREE_CONSOLE, &CgSoapMFCServerDlg::OnClickedFreeConsole)
 END_MESSAGE_MAP()
 
 
@@ -98,14 +104,159 @@ HANDLE MyOpenFile(
                 LPCTSTR lpszFilename,
                 DWORD dwDesiredAccess, 
                 DWORD dwShareMode);
-void WriteLog(const char* info_format, ...);
 HRESULT GenerateConfigTable();
 void my_soap_init(struct soap *pSoap);
 void SoapErr(struct soap *soap);
-LPCTSTR pszCfgFile = _T("./test.ini");
+LPCTSTR lpszCfgFile = _T("./test.ini");
+PCSTR pszCfgFile = "./test.ini";
 HANDLE hSoapServerThd = NULL;
 DWORD soapSvrThdid;
 BOOL startSvr = false;
+
+int ChangeStateCRT(int *pState, char *pCh)
+{
+    switch(*pState)
+    {
+        case 0:
+        {
+            if (*pCh == '<')
+            {
+                *pState = 1;
+            }
+            break;
+        }
+        case 1:
+        {
+            if (*pCh == '%')
+            {
+                *pState = 2;
+            }
+            else if (*pCh == '<')
+            {
+            }
+            else
+            {
+                *pState = 0;
+            }
+            break;
+        }
+        case 2:
+        {
+            if (*pCh == '%')
+            {
+                *pState = 3;
+            }
+            break;
+        }
+        case 3:
+        {
+            if (*pCh == '>')
+            {
+                *pState = 4;
+            }
+            else
+            {
+                *pState = 2;
+            }
+            break;
+        }
+        default:
+            return *pState;
+    }
+    
+    return *pState;
+}
+
+void gethtmltest()
+{
+    const int BUFFER_SIZE = 1024 * 8;
+    char read_buf[BUFFER_SIZE] = {0};
+    outStackBuffer bufStack;
+	initStack(&bufStack, BUFFER_SIZE * 2);
+    FILE *pf = OpenFileReadCRT("./index.htm");
+    if (pf == NULL) 
+    {
+        ShowInfo("get file error!");
+        return;
+    }
+
+    ShowInfo("get file success!");
+    DWORD dwBytesRead = 0;
+    int status = 0;
+	int pushed = -1;
+    do {
+        int start = -1;
+        int end = -1;
+        dwBytesRead = ReadFileBytesCRT(pf, read_buf, BUFFER_SIZE);
+        ShowInfo(read_buf, dwBytesRead);
+  //      // search for <% %>
+  //      for (int i = 0; i < dwBytesRead; i++)
+  //      {
+  //          switch (ChangeStateCRT(&status, read_buf + i))
+  //          {
+		//		case 0:
+		//		{
+		//			while (pushed < i)
+		//			{
+		//				pushed++;
+		//				if (pushed < 0)
+		//				{
+		//					pushStack(&bufStack, "<");
+		//				}
+		//				else
+		//				{
+		//					pushStack(&bufStack, read_buf + pushed);
+		//				}
+		//			}
+		//			break;
+		//		}
+  //              case 1:
+  //              {
+		//			if (pushed + 1 < i)
+		//			{
+		//				pushed++;
+		//				if (pushed < 0)
+		//				{
+		//					pushStack(&bufStack, "<");
+		//				}
+		//				else
+		//				{
+		//					pushStack(&bufStack, read_buf + pushed);
+		//				}
+		//			}
+  //                  break;
+  //              }
+  //              case 4:
+  //              {
+  //                  pushed = i;
+		//			status = 0;
+		//			break;
+  //              }
+		//		default:
+		//			break;
+  //          }
+  //      }
+		//if (status == 1)
+		//{
+		//	pushed -= dwBytesRead;
+		//}
+		//else
+		//{
+		//	pushed = -1;
+		//}
+		//if (bufStack.index > 0)
+		//{
+		//	emptyStack(&bufStack);
+		//}
+    } while (!(dwBytesRead < BUFFER_SIZE));
+    fclose(pf);
+	deleteStack(&bufStack);
+}
+
+void AllTests()
+{
+    gethtmltest();
+}
 
 DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
 {
@@ -158,6 +309,7 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
 			//soap_set_mode(&calc_soap, SOAP_C_MBSTRING);
 			//soap_omode(&calc_soap, SOAP_C_MBSTRING);
 
+            MessageBox(0, _T("HttpReq"), _T("success"), MB_OK);
             // process RPC request
 			if (soap_serve(&calc_soap) != SOAP_OK)
 			{}
@@ -200,7 +352,7 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
         return -1;
 	}
 	HANDLE hCfgFile = MyOpenFile(
-	                            pszCfgFile, 
+	                            _T("./test.ini"), 
                                 GENERIC_READ | GENERIC_WRITE,
                                 FILE_SHARE_READ | FILE_SHARE_WRITE);
     if (hCfgFile == INVALID_HANDLE_VALUE)
@@ -221,11 +373,6 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
     }
     
     return SOAP_OK;
-}
-
-DWORD GetFileCurrentPointer(HANDLE hFile)
-{
-    return SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
 }
 
 DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
@@ -378,66 +525,10 @@ void CgSoapMFCServerDlg::OnBnClickedStart()
     // StartgSoapServer(NULL);
 }
 
-void WriteLog(const char* info_format, ...)
-{
-    SYSTEMTIME timeNow;
-    GetLocalTime(&timeNow);
-	va_list arg_ptr;
-	va_start(arg_ptr, info_format);
-    FILE *pfLog;
-    //time_t t;
-    //time(&t);
-    char time_str[64] = {0};
-    sprintf(time_str, "%4d/%2d/%2d %2d:%2d:%2d %4dms ... ", timeNow.wYear, timeNow.wMonth, timeNow.wDay,
-        timeNow.wHour, timeNow.wMinute, timeNow.wSecond, timeNow.wMilliseconds);
-    //strftime(time_str, sizeof(time_str), "%Y/%m/%d %H:%M:%S %z...", localtime(&t));
-	pfLog = fopen("soap.log", "a+");
-	fprintf(pfLog, "%s", time_str);
-	vfprintf(pfLog, info_format, arg_ptr);
-	fprintf(pfLog, "\n");
-    fclose(pfLog);
-	va_end(arg_ptr);
-}
-
 void SoapErr(struct soap *soap)
 {
     WriteLog(NULL);
     soap_print_fault(soap, stderr);
-}
-
-HANDLE MyOpenFile(
-                LPCTSTR lpszFilename,
-                DWORD dwDesiredAccess, 
-                DWORD dwShareMode)
-{
-    return CreateFile(
-                    lpszFilename, 
-                    dwDesiredAccess,
-                    dwShareMode,
-                    NULL,
-                    OPEN_EXISTING,
-                    FILE_ATTRIBUTE_NORMAL,
-                    NULL);
-}
-
-HANDLE OpenWebFile(LPCTSTR lpszFilename)
-{
-    return MyOpenFile(lpszFilename, 
-                    GENERIC_READ,
-                    FILE_SHARE_READ);
-}
-
-HRESULT ReadFileToBuffer(HANDLE hFile, LPVOID read_buf, DWORD buf_len, LPDWORD lpdwBytesRead)
-{
-    HRESULT hr = S_OK;
-    ZeroMemory(read_buf, buf_len);
-    *lpdwBytesRead = 0;
-    if (FALSE == ReadFile(hFile, read_buf, buf_len, lpdwBytesRead, NULL))
-    {
-        hr = HRESULT_FROM_WIN32(GetLastError());
-    }
-    
-    return hr;
 }
 
 int ConfigChangeState(int *pState, char *pCh)
@@ -615,7 +706,7 @@ HRESULT SendConfigTable(struct soap* pSoap, poutStackBuffer pStack)
 {
     HRESULT hr;
     const int BUFFER_SIZE = 128;
-    HANDLE hCfgFile = OpenWebFile(pszCfgFile);
+    HANDLE hCfgFile = OpenWebFile(_T("./test.ini"));
     if (hCfgFile == INVALID_HANDLE_VALUE) 
     {
         hr = HRESULT_FROM_WIN32(::GetLastError());
@@ -664,30 +755,6 @@ HRESULT SendConfigTable(struct soap* pSoap, poutStackBuffer pStack)
     }
     CloseHandle(hCfgFile);
     return hr;
-}
-
-typedef enum {
-    HTML, JS, CSS, OTHER
-} FileType;
-
-FileType GetFileType(const char* path)
-{
-    if (path)
-    {
-        if (strstr(path, ".htm") || !strcmp(path, "/"))
-        {
-            return HTML;
-        }
-        if (strstr(path, ".js")) 
-        {
-            return JS;
-        }
-        if (strstr(path, ".css"))
-        {
-            return CSS;
-        }
-    }
-    return OTHER;
 }
 
 int ChangeState(int *pState, char *pCh)
@@ -746,7 +813,7 @@ int ChangeState(int *pState, char *pCh)
 
 HANDLE SelectFile(struct soap *soap, FileType ft)
 {
-	HANDLE hFile = INVALID_HANDLE_VALUE;
+	HANDLE hFile;
 	switch (ft)
     {
         // HTTP response header with text/html
@@ -807,15 +874,18 @@ int MyHttpGet(struct soap *soap)
     
 	soap_response(soap, SOAP_FILE);
 	soap->http_content = "text/html; charset=gb2312";
+	ShowInfo(soap->path);
 	FileType ft = GetFileType(soap->path);
 	hFile = SelectFile(soap, ft);
 
     if (hFile == INVALID_HANDLE_VALUE) 
     {
+        ShowInfo("get file error!");
         hr = HRESULT_FROM_WIN32(::GetLastError());
     }
     if (SUCCEEDED(hr))
     {
+        ShowInfo("get file success!", strlen("get file success!"));
         int status = 0;
 		int pushed = -1;
         do {
@@ -825,6 +895,7 @@ int MyHttpGet(struct soap *soap)
                 read_buf, 
                 BUFFER_SIZE, 
                 &dwBytesRead);
+
             if (ft == HTML)
             {
                 // search for <% %>
@@ -883,22 +954,6 @@ int MyHttpGet(struct soap *soap)
 				{
 					pushed = -1;
 				}
-                //if (status == 0)
-                //{
-                //    soap_send_raw(soap, read_buf, dwBytesRead);
-                //}
-                //if (status > 0 && !(start < 0))
-                //{
-                //    soap_send_raw(soap, read_buf, start);
-                //}
-                //if (status > 3 && end > 0 && (dwBytesRead - end) > 0)
-                //{
-                //    soap_send_raw(soap, read_buf + end, dwBytesRead - end);
-                //}
-                //if (status > 3 && start < 0 && end < 0)
-                //{
-                //    soap_send_raw(soap, read_buf, dwBytesRead);
-                //}
 				if (bufStack.index > 0)
 				{
 					soap_send_raw(soap, bufStack.pBuffer, bufStack.index);
@@ -919,18 +974,6 @@ int MyHttpGet(struct soap *soap)
     return SOAP_OK;
 }
 
-HANDLE WINAPI MyThread(
-    LPTHREAD_START_ROUTINE lpStartAddress,
-    LPDWORD lpThreadId,
-    LPVOID lpParameter,
-    DWORD dwCreationFlags)
-{
-    return CreateThread(NULL, 0, 
-        lpStartAddress, 
-        lpParameter, 
-        dwCreationFlags, 
-        lpThreadId);
-}
 
 DWORD WINAPI ProcessRequest(LPVOID lpThreadParam)
 {
@@ -952,8 +995,6 @@ DWORD WINAPI ProcessRequest(LPVOID lpThreadParam)
 
 SOAP_SOCKET queue[MAX_QUEUE]; // The global request of sockets
 int head = 0, tail = 0; // Queue head and tail
-//pthread_mutex_t queue_cs;
-//pthread_cond_t queue_cv;
 
 
 void my_soap_init(struct soap *pSoap)
@@ -966,167 +1007,34 @@ void my_soap_init(struct soap *pSoap)
 	//soap_clr_mode(pSoap, SOAP_C_UTFSTRING);
 	//soap_set_mode(pSoap, SOAP_C_MBSTRING);
 	//soap_omode(&calc_soap, SOAP_C_MBSTRING);
-	pSoap->fget = MyHttpGet;
+	pSoap->fget = MyHttpGet;//CRT;
 }
-
-DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
+void CgSoapMFCServerDlg::OnTestClicked()
 {
-	startSvr = true;
-	//ServiceService calc_service;
-	//calc_service.serve();
-	
-	// soap_serve(soap_new()); 
-	// use the service operation request dispatcher
-	// open the log file.
-
-    struct soap* ptsoap[MAX_THR] = {0};
-    HANDLE th[MAX_THR] = {0};
-    DWORD tid[MAX_THR] = {0};
-    int i;
+    // TODO: Add your control notification handler code here
+    // AllTests();
     
-	struct soap calc_soap;
-	int m, s; // master and slave sockets
-	// soap init
-	soap_init(&calc_soap);
-	my_soap_init(&calc_soap);
-	
-	// 
-	m = soap_bind(&calc_soap, 
-	    NULL, // 任何IP地址都可以访问
-	    18083, // 端口
-	    100); // 请求队列的长度
-	if (m < 0) //!soap_valid_socket(m)
-	{
-	    WriteLog("Start Server Error!");
-	    // 
-	    MessageBox(0, _T("Start Server Error!\n"), _T("Info"), MB_OK);
-	}
-	else
-	{
-	    WriteLog("Start Server successful........");
-        MessageBox(0, _T("Start Server successful........"), _T("Info"), MB_OK);
-        while (startSvr)
+    if (AllocConsole())
+    {
+        printf("this is test.");
+        HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        LPCSTR pMsg = "this is console test.";
+        DWORD dwWritten;
+        if (WriteConsole(hStdOut, pMsg, strlen(pMsg) / 2, &dwWritten, NULL))
         {
-            for (i = 0; i < MAX_THR; i++)
-            {
-                s = soap_accept(&calc_soap);
-                if (s < 0)
-                {
-                    SoapErr(&calc_soap);
-                    MessageBox(0, _T("soap_accept Error!"), _T("Error"), MB_OK);
-                    break;
-                }
-                // fprintf(...
-				WriteLog("Thread %d accept socket %d connection from IP %d.%d.%d.%d", 
-					tid[i], s, (calc_soap.ip >> 24) & 0xFF, 
-					(calc_soap.ip >> 16) & 0xFF, 
-					(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF);
-                if (!ptsoap[i]) // first time around
-                {
-                    ptsoap[i] = soap_copy(&calc_soap);
-					if (!ptsoap[i])
-					{
-						ASSERT(0);
-						exit(1);
-						// error
-					}
-                }
-				else
-				{
-					WaitForSingleObject(th[i], 1 * 1000);
-					WriteLog("Thread %d[%d] completed, status tid = %d", th[i], i, tid[i]);
-					// deallocate C++ data of old thread
-					soap_destroy(ptsoap[i]); 
-					// deallocate data of old thread
-					soap_end(ptsoap[i]); 
-				}
-				// new socket fd
-				ptsoap[i]->socket = s;
-				th[i] = MyThread(ProcessRequest, &tid[i], ptsoap[i]);
-            }
-
-			WaitForMultipleObjects(MAX_THR, th, TRUE, 1 * 1000);
-            for (i = 0; i < MAX_THR; i++)
-            {
-				CloseHandle(th[i]);
-				if (ptsoap[i])
-				{
-					soap_done(ptsoap[i]); //detach context
-					free(ptsoap[i]); //free up
-				}
-            }
-
-			startSvr = false;
+            ShowInfo(pMsg);
         }
+        CloseHandle(hStdOut);
     }
-    
-    soap_done(&calc_soap);
-    MessageBox(0, _T("soap_done!"), _T("Info"), MB_OK);
-
-	startSvr = false;
-	WriteLog("Web Server End........");
-
-    return 0;
+    FreeConsole();
 }
 
-//void* process_queue(void* soap);
-//int enqueue(SOAP_SOCKET sock);
-//SOAP_SOCKET dequeue();
-//void* process_queue(void* soap)
-//{
-//    struct soap* tsoap = (struct soap*)soap;
-//    for (;;)
-//    {
-//        tsoap->socket = dequeue();
-//        if (0)
-//        {
-//            break;
-//        }
-//        soap_serve(tsoap);
-//        soap_destroy(tsoap);
-//        soap_end(tsoap);
-//        fprintf(stderr, "served\n");
-//    }
-//    
-//    return NULL;
-//}
-//
-//int enqueue(SOAP_SOCKET sock)
-//{
-//    int status = SOAP_OK;
-//    int next;
-//    pthread_mutex_lock(&queue_cs);
-//    next = tail + 1;
-//    if (next >= MAX_QUEUE)
-//    {
-//        next = 0;
-//    }
-//    if (next == head)
-//    {
-//        status = SOAP_EOM;
-//    } else {
-//        queue[tail] = sock;
-//        tail = next;
-//    }
-//    pthread_cond_signal(&queue_cv);
-//    pthread_mutex_unlock(&queue_cs);
-//    
-//    return status;
-//}
-//
-//SOAP_SOCKET dequeue()
-//{
-//    SOAP_SOCKET sock;
-//    pthread_mutex_lock(&queue_cs);
-//    while (head == tail)
-//    {
-//        pthread_cond_wait(&queue_cv, &queue_cs);
-//    }
-//    sock = queue[head++];
-//    if (head >= MAX_QUEUE)
-//    {
-//        head = 0;
-//    }
-//    pthread_mutex_unlock(&queue_cs);
-//    return sock;
-//}
+void CgSoapMFCServerDlg::OnClickedCreateConsole()
+{
+    // TODO: Add your control notification handler code here
+}
+
+void CgSoapMFCServerDlg::OnClickedFreeConsole()
+{
+    // TODO: Add your control notification handler code here
+}
