@@ -1009,13 +1009,16 @@ void my_soap_init(struct soap *pSoap)
 	//soap_omode(&calc_soap, SOAP_C_MBSTRING);
 	pSoap->fget = MyHttpGet;//CRT;
 }
+BOOL promptCreated = false;
 void CgSoapMFCServerDlg::OnTestClicked()
 {
     // TODO: Add your control notification handler code here
     // AllTests();
     
-    if (AllocConsole())
+    if (promptCreated)
     {
+        _tfreopen(_T("CONOUT$"), _T("w+t"), stdout);
+        _tfreopen(_T("CONIN$"), _T("w+t"), stdin);
         printf("this is test.");
         HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
         LPCSTR pMsg = "this is console test.";
@@ -1025,16 +1028,24 @@ void CgSoapMFCServerDlg::OnTestClicked()
             ShowInfo(pMsg);
         }
         CloseHandle(hStdOut);
+        fclose(stdout);
+        fclose(stdin);
+        printf("this is test.");
     }
-    FreeConsole();
 }
 
 void CgSoapMFCServerDlg::OnClickedCreateConsole()
 {
     // TODO: Add your control notification handler code here
+    if (!promptCreated)
+    {
+        promptCreated = AllocConsole();
+    }
 }
 
 void CgSoapMFCServerDlg::OnClickedFreeConsole()
 {
     // TODO: Add your control notification handler code here
+    FreeConsole();
+    promptCreated = false;
 }
