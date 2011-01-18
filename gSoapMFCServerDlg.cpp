@@ -521,6 +521,7 @@ HANDLE SelectFile(struct soap *soap, FileType ft)
         // HTTP response header with text/html
         case HTML:
 		{
+		    soap->http_content = "text/html; charset=gb2312";
             if (strstr(soap->path, "test"))
             {
                 hFile = OpenWebFile(_T("./test.htm"));
@@ -533,6 +534,7 @@ HANDLE SelectFile(struct soap *soap, FileType ft)
 		}
 		case JS:
 		{
+		    soap->http_content = "application/x-javascript; charset=UTF-8";
 		    if (strstr(soap->path, "main"))
 		    {
                 hFile = OpenWebFile(_T("./main.js"));
@@ -545,11 +547,13 @@ HANDLE SelectFile(struct soap *soap, FileType ft)
 		}
         case CSS: 
 		{
+		    soap->http_content = "text/css";
 			hFile = OpenWebFile(_T("./main.css"));
             break;
 		}
         default:
 		{
+		    soap->http_content = "text/xml; charset=UTF-8";
 			if (rand() % 2 + 1)
 			{
 				hFile = OpenWebFile(_T("./ns.winconfig.req.xml"));
@@ -573,7 +577,6 @@ int MyHttpGet(struct soap *soap)
     char read_buf[BUFFER_SIZE] = {0};
     
 	soap_response(soap, SOAP_FILE);
-	soap->http_content = "text/html; charset=gb2312";
 	//ShowInfo(soap->path);
 	FileType ft = GetFileType(soap->path);
 	// GetFullFilePath here.

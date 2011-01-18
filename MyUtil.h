@@ -22,6 +22,31 @@ FileType GetFileType(const char* path)
     return OTHER;
 }
 
+FileType GetFileFullPath(LPSTR lpszFullpath, LPCSTR soapPath)
+{
+    LPCSTR lpszFormat = ".%s";
+    if (soapPath)
+    {
+        if (strstr(soapPath, ".htm") || !strcmp(soapPath, "/"))
+        {
+            sprintf(lpszFullpath, lpszFormat, "/index.htm");
+            return HTML;
+        }
+        if (strstr(soapPath, ".js")) 
+        {
+            sprintf(lpszFullpath, lpszFormat, soapPath);
+            return JS;
+        }
+        if (strstr(soapPath, ".css"))
+        {
+            sprintf(lpszFullpath, lpszFormat, soapPath);
+            return CSS;
+        }
+        sprintf(lpszFullpath, lpszFormat, soapPath);
+    }
+    return OTHER;
+}
+
 DWORD GetFileCurrentPointer(HANDLE hFile)
 {
     return SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
