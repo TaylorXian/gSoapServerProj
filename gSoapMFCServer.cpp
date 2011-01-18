@@ -70,7 +70,8 @@ BOOL CgSoapMFCServerApp::InitInstance()
 		//  dismissed with Cancel
 	}
 
-    FreeConsole();
+    // if the console is not be freed£¬free it.
+    dlg.OnClickedFreeConsole();
 	// Since the dialog has been closed, return FALSE so that we exit the
 	//  application, rather than start the application's message pump.
 	return FALSE;

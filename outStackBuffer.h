@@ -63,3 +63,22 @@ void emptyStack(poutStackBuffer pStack)
 {
 	pStack->index = 0;
 }
+
+char popStack(poutStackBuffer pStack)
+{
+	if (pStack->index > 0)
+	{
+		pStack->index--;
+		return *(pStack->pBuffer + pStack->index);
+	}
+	return -1;
+}
+
+char topStack(poutStackBuffer pStack)
+{
+	if (pStack->index > 0)
+	{
+		return *(pStack->pBuffer + pStack->index - 1);
+	}
+	return -1;
+}

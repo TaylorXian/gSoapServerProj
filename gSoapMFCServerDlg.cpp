@@ -183,67 +183,64 @@ void gethtmltest()
     ShowInfo("get file success!");
     DWORD dwBytesRead = 0;
     int status = 0;
+    char ch = '\0';
 	int pushed = -1;
     do {
         int start = -1;
         int end = -1;
+        ZeroMemory(read_buf, BUFFER_SIZE);
         dwBytesRead = ReadFileBytesCRT(pf, read_buf, BUFFER_SIZE);
-        ShowInfo(read_buf, dwBytesRead);
-  //      // search for <% %>
-  //      for (int i = 0; i < dwBytesRead; i++)
-  //      {
-  //          switch (ChangeStateCRT(&status, read_buf + i))
-  //          {
-		//		case 0:
-		//		{
-		//			while (pushed < i)
-		//			{
-		//				pushed++;
-		//				if (pushed < 0)
-		//				{
-		//					pushStack(&bufStack, "<");
-		//				}
-		//				else
-		//				{
-		//					pushStack(&bufStack, read_buf + pushed);
-		//				}
-		//			}
-		//			break;
-		//		}
-  //              case 1:
-  //              {
-		//			if (pushed + 1 < i)
-		//			{
-		//				pushed++;
-		//				if (pushed < 0)
-		//				{
-		//					pushStack(&bufStack, "<");
-		//				}
-		//				else
-		//				{
-		//					pushStack(&bufStack, read_buf + pushed);
-		//				}
-		//			}
-  //                  break;
-  //              }
-  //              case 4:
-  //              {
-  //                  pushed = i;
-		//			status = 0;
-		//			break;
-  //              }
-		//		default:
-		//			break;
-  //          }
-  //      }
-		//if (status == 1)
-		//{
-		//	pushed -= dwBytesRead;
-		//}
-		//else
-		//{
-		//	pushed = -1;
-		//}
+        printf("%s", read_buf);
+        // search for <% %> 不能嵌套使用
+        for (int i = 0; i < dwBytesRead; i++)
+        {
+            if (status == 0)
+            {
+			    pushStack(&bufStack, read_buf + i);
+            }
+            switch (ChangeStateCRT(&status, read_buf + i))
+            {
+                case '>':
+                {
+				    if (bufStack.index > 1 && *(bufStack.pBuffer + bufStack.index - 2) == '%')
+				    {
+					    if (topStack(&bufStack) == '%')
+					    {
+					        popStack(&bufStack);
+					        status++;
+				            break;
+					    }
+				    }
+                    break;
+                }
+			    case '%':
+			    {
+				    if (bufStack.index < 2)
+				    {
+				        break;
+				    }
+				    if (status == 0)
+				    {
+				        if (*(bufStack.pBuffer + bufStack.index - 2) != '<')
+					    {
+					        break;
+					    }
+					    else
+					    {
+					        popStack(&bufStack);
+					        status++;
+					    }
+				    }
+					
+			    }
+                case '\r':
+                case '\n':
+				    popStack(&bufStack);
+				    break;
+			    default:
+				    break;
+            }
+        }
 		//if (bufStack.index > 0)
 		//{
 		//	emptyStack(&bufStack);
@@ -1013,24 +1010,14 @@ BOOL promptCreated = false;
 void CgSoapMFCServerDlg::OnTestClicked()
 {
     // TODO: Add your control notification handler code here
-    // AllTests();
-    
     if (promptCreated)
     {
-        _tfreopen(_T("CONOUT$"), _T("w+t"), stdout);
-        _tfreopen(_T("CONIN$"), _T("w+t"), stdin);
-        printf("this is test.");
-        HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        LPCSTR pMsg = "this is console test.";
-        DWORD dwWritten;
-        if (WriteConsole(hStdOut, pMsg, strlen(pMsg) / 2, &dwWritten, NULL))
-        {
-            ShowInfo(pMsg);
-        }
-        CloseHandle(hStdOut);
-        fclose(stdout);
-        fclose(stdin);
-        printf("this is test.");
+        AllTests();
+    }
+    else
+    {
+        this->OnClickedCreateConsole();
+        this->OnTestClicked();
     }
 }
 
@@ -1040,12 +1027,17 @@ void CgSoapMFCServerDlg::OnClickedCreateConsole()
     if (!promptCreated)
     {
         promptCreated = AllocConsole();
+        if (promptCreated)
+        {
+            OpenStdConsoleCRT();
+        }
     }
 }
 
 void CgSoapMFCServerDlg::OnClickedFreeConsole()
 {
     // TODO: Add your control notification handler code here
+    CloseStdConsoleCRT();
     FreeConsole();
     promptCreated = false;
 }

@@ -102,4 +102,39 @@ VOID ReportError(LPCTSTR userMessage, DWORD exitCode,
         return;
     }
 }
-
+VOID MyWriteConsole()
+{
+    HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    LPCSTR pMsg = "this is console test.";
+    DWORD dwWritten;
+    if (WriteConsole(hStdOut, pMsg, strlen(pMsg) / 2, &dwWritten, NULL))
+    {
+        ShowInfo(pMsg);
+    }
+    CloseHandle(hStdOut);
+}
+VOID OpenStdConsoleCRT()
+{
+    _tfreopen(_T("CONOUT$"), _T("w+t"), stdout);
+    _tfreopen(_T("CONIN$"), _T("w+t"), stdin);
+    //printf("this is test.");
+    //printf("this is test.");
+    /***********************************************
+    用这种方式也可以将控制台与crt的标准输入输出相关联
+    intptr_t handle = (intptr_t)GetStdHandle(STD_OUTPUT_HANDLE);
+    //Associates a C run-time file descriptor with an existing operating-system file handle.
+    int hCrt = _open_osfhandle(handle, _O_TEXT);
+    //Associates a stream with a file that was previously opened for low-level I/O.
+    FILE *hf = _fdopen(hCrt, "w");
+    *stdout = *hf;
+    
+    TCHAR title[64] = {0};
+    SetConsoleTitle(title);
+    SetConsoleTextAttribute((HANDLE)handle, FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+    ************************************************/
+}
+VOID CloseStdConsoleCRT()
+{
+    fclose(stdout);
+    fclose(stdin);
+}
