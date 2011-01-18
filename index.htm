@@ -1,63 +1,56 @@
-<!doctype html>
+<!--DOCTYPE HTML-->
 <html>
 <head>
-    <meta content="text/html; charset=gb2312" http-equiv="content-type" />
-    <meta name="GENERATOR" content="Microsoft Visual Studio 8.0" />
+    <meta http-equiv='content-type' content='text/html; charset=gbk' />
+    <meta name='GENERATOR' content='Microsoft Visual Studio 8.0' />
     <title>My name is gSoap Server Test.</title>
-    <link rel="Stylesheet" type="text/css" media="screen" href="./main.css" />
+    <link rel='stylesheet' type='text/css' href='./main.css' />
 
-    <script type="text/javascript" src="./jquery-latest.js"></script>
-
-    <script type="text/javascript" src="./main.js"></script>
-
-    <style type="text/css">
-        .mo
-        {
-            background-color: Gray;
-        }
-    </style>
+    <script type='text/javascript' src='./jquery-latest.js'></script>
+    <script type='text/javascript' src='./main.js'></script>
 </head>
 <body>
-    <div id="container">
-        <div id="header">
+    <div id='container'>
+        <div id='header'>
             <h2>
                 WinCE Web Service ConfigFile Management</h2>
         </div>
-        <div id="main">
+        <div id='main'>
             <form>
-            <div id="dialog" class="invisible">
-                <div style="margin: 16px auto; float: left;">
-                    <input type="text" value="" id="txtKey" />=<input type="text" value="" id="txtVal" />
+            <div id='dialog' class='invisible'>
+                <div style='margin: 16px auto; float: left;'>
+                    <input type='text' value='' id='txtKey' />=<input type='text' value='' id='txtVal' />
                 </div>
-                <div style="margin: auto auto 16px auto; clear: left; float: left;">
-                    <input type="button" value="Modify" id="btnModify" /><input type="button" value="Close"
-                        id="btnClose" />
+                <div style='margin: auto auto 16px auto; clear: left; float: left;'>
+                    <input type='button' value='Modify' id='btnModify' /><input type='button' value='Close'
+                        id='btnClose' />
                 </div>
-                <label id="lblInfo"></label>
+                <span id='lblInfo'></span>
             </div>
-            <input type="hidden" value="click me get soap data" name="web" id="btnGetRequestSoapData" />
-            <input type="hidden" value="click me call web service" name="web" id="btn" />
-            <div class="line">
+            <input type='hidden' value='click me get soap data' name='web' id='btnGetRequestSoapData' />
+            <input type='hidden' value='click me call web service' name='web' id='btn' />
+            <div class='line'>
                 <% <table>
             <tr>
                 <td>
-                    <span id="" class="attrname">attrname</span>
+                    <span id='' class='attrname'>attrname</span>
                 </td>
                 <td>
-                    <input type="text" value="" name="" id="" />
+                    <input type='text' value='' name='' id='' />
                 </td>
             </tr></table>%>
             </div>
-            <div class="invisible">
-                <input type="button" value="click me get table" name="web" id="btnGetTable" />
+            <div class='invisible'>
+                <input type='button' value='click me get table' name='web' id='btnGetTable' />
             </div>
             </form>
         </div>
         <hr />
-        <div id="footer">
-            <label style="text-decoration: underline;">
-                Email : taylorsaltfish@gmail.com 提供技术支持。</label>
-        </div>
+        <footer>
+        <div id='footer'>
+            <span style='text-decoration: underline;'>
+                Email : taylorsaltfish@gmail.com 提供技术支持。</span>
+        </div></footer>
     </div>
 </body>
 </html>

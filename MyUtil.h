@@ -46,6 +46,7 @@ void WriteLog(const char* info_format, ...)
     fclose(pfLog);
 	va_end(arg_ptr);
 }
+
 FILE* OpenFileReadCRT(LPCSTR lpFilename)
 {
     if (strlen(lpFilename) > 0)
@@ -70,6 +71,28 @@ int CloseFile(FILE* pf)
     }
     return fclose(pf);
 }
+HANDLE MyOpenFileA(
+                LPCSTR lpszFilename,
+                DWORD dwDesiredAccess, 
+                DWORD dwShareMode)
+{
+    return CreateFileA(
+                    lpszFilename, 
+                    dwDesiredAccess,
+                    dwShareMode,
+                    NULL,
+                    OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL,
+                    NULL);
+}
+
+HANDLE OpenWebFileA(LPCSTR lpszFilename)
+{
+    return MyOpenFileA(lpszFilename, 
+                    GENERIC_READ,
+                    FILE_SHARE_READ);
+}
+
 HANDLE MyOpenFile(
                 LPCTSTR lpszFilename,
                 DWORD dwDesiredAccess, 
@@ -94,7 +117,6 @@ HANDLE OpenWebFile(LPCTSTR lpszFilename)
 
 FILE* OpenWebFileCRT(LPCSTR lpszFilename)
 {
-	// GetFullFilePath here.
     return OpenFileReadCRT(lpszFilename);
 }
 

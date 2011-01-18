@@ -28,8 +28,9 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-    afx_msg void OnBnClickedStart();
-    afx_msg void OnTestClicked();
+    afx_msg void OnClickedStartSvr();
+    afx_msg void OnClickedTest();
     afx_msg void OnClickedCreateConsole();
     afx_msg void OnClickedFreeConsole();
+	afx_msg void OnClickedStopSvr();
 };

@@ -37,10 +37,11 @@ BEGIN_MESSAGE_MAP(CgSoapMFCServerDlg, CDialog)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	//}}AFX_MSG_MAP
-    ON_BN_CLICKED(IDC_BTN_START_SERVER, &CgSoapMFCServerDlg::OnBnClickedStart)
-    ON_BN_CLICKED(IDC_BTN_RUN_TESTS, &CgSoapMFCServerDlg::OnTestClicked)
+    ON_BN_CLICKED(IDC_BTN_START_SERVER, &CgSoapMFCServerDlg::OnClickedStartSvr)
+    ON_BN_CLICKED(IDC_BTN_RUN_TESTS, &CgSoapMFCServerDlg::OnClickedTest)
     ON_BN_CLICKED(IDC_BTN_ALLOC_CONSOLE, &CgSoapMFCServerDlg::OnClickedCreateConsole)
     ON_BN_CLICKED(IDC_BTN_FREE_CONSOLE, &CgSoapMFCServerDlg::OnClickedFreeConsole)
+	ON_BN_CLICKED(IDC_BTN_STOP_SVR, &CgSoapMFCServerDlg::OnClickedStopSvr)
 END_MESSAGE_MAP()
 
 
@@ -113,7 +114,17 @@ HANDLE hSoapServerThd = NULL;
 DWORD soapSvrThdid;
 BOOL startSvr = false;
 
-void GenerateConfigTableCRT(poutStackBuffer pStack)
+void SoapSendMyStack(struct soap *pSoap, poutStackBuffer pStack)
+{
+	if (pStack->index > 0)
+    {
+		//printf("%s", pStack->pBuffer);
+		soap_send_raw(pSoap, pStack->pBuffer, pStack->index);
+		emptyzeroStack(pStack);
+    }
+}
+
+void GenerateConfigTableCRT(struct soap *pSoap, poutStackBuffer pStack)
 {
     const int BUFFER_SIZE = 128;
     FILE *pCfgFile = OpenWebFileCRT("config.ini");
@@ -149,11 +160,7 @@ void GenerateConfigTableCRT(poutStackBuffer pStack)
 					break;
 			}
         }
-		if (pStack->index > 0)
-        {
-			printf("%s", pStack->pBuffer);
-			emptyzeroStack(pStack);
-        }
+		SoapSendMyStack(pSoap, pStack);
     } while (!(dwBytesRead < BUFFER_SIZE));
     pushStack(pStack, "</table>", strlen("</table>"));
     
@@ -165,20 +172,19 @@ void GenerateConfigTableCRT(poutStackBuffer pStack)
     fclose(pCfgFile);
 }
 
-void gethtmltest()
+void GetHtml(struct soap *pSoap, FILE *pfHtml)
 {
-    const int BUFFER_SIZE = 1024 * 8;
-    char read_buf[BUFFER_SIZE] = {0};
-    outStackBuffer bufStack;
-	initStack(&bufStack, BUFFER_SIZE * 2);
-    FILE *pf = OpenFileReadCRT("./index.htm");
-    if (pf == NULL) 
+    if (pfHtml == NULL) 
     {
         ShowInfo("get file error!");
         return;
     }
+    const int BUFFER_SIZE = 1024 * 8;
+    char read_buf[BUFFER_SIZE] = {0};
+    outStackBuffer bufStack;
+	initStack(&bufStack, BUFFER_SIZE * 2);
 
-    ShowInfo("get file success!");
+    //ShowInfo("get file success!");
     DWORD dwBytesRead = 0;
     int status = 0;
     char lastCh = '\0';
@@ -187,7 +193,7 @@ void gethtmltest()
         int start = -1;
         int end = -1;
         ZeroMemory(read_buf, BUFFER_SIZE);
-        dwBytesRead = ReadFileBytesCRT(pf, read_buf, BUFFER_SIZE);
+        dwBytesRead = ReadFileBytesCRT(pfHtml, read_buf, BUFFER_SIZE);
         // search for <% %> 不能嵌套使用
         for (int i = 0; i < dwBytesRead; i++)
         {
@@ -203,7 +209,7 @@ void gethtmltest()
 				    if (status == 0 && lastCh == '<')
 				    {
 				        popStack(&bufStack);
-						GenerateConfigTableCRT(&bufStack);
+						GenerateConfigTableCRT(pSoap, &bufStack);
 				        status++;
 				    }
 			    }
@@ -225,19 +231,14 @@ void gethtmltest()
             }
 			lastCh = ch;
         }
-		if (bufStack.index > 0)
-		{
-			printf("%s", bufStack.pBuffer);
-			emptyzeroStack(&bufStack);
-		}
+		SoapSendMyStack(pSoap, &bufStack);
     } while (!(dwBytesRead < BUFFER_SIZE));
-    fclose(pf);
 	deleteStack(&bufStack);
 }
 
 void AllTests()
 {
-    gethtmltest();
+    //gethtmltest();
 }
 
 DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
@@ -291,7 +292,6 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
 			//soap_set_mode(&calc_soap, SOAP_C_MBSTRING);
 			//soap_omode(&calc_soap, SOAP_C_MBSTRING);
 
-            MessageBox(0, _T("HttpReq"), _T("success"), MB_OK);
             // process RPC request
 			if (soap_serve(&calc_soap) != SOAP_OK)
 			{}
@@ -480,7 +480,7 @@ DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
 }
 
 
-void CgSoapMFCServerDlg::OnBnClickedStart()
+void CgSoapMFCServerDlg::OnClickedStartSvr()
 {
     // TODO: Add your control notification handler code here
     
@@ -571,13 +571,12 @@ int MyHttpGet(struct soap *soap)
     HANDLE hFile;
     DWORD dwBytesRead = 0;
     char read_buf[BUFFER_SIZE] = {0};
-    outStackBuffer bufStack;
-	initStack(&bufStack, BUFFER_SIZE * 2);
     
 	soap_response(soap, SOAP_FILE);
 	soap->http_content = "text/html; charset=gb2312";
-	ShowInfo(soap->path);
+	//ShowInfo(soap->path);
 	FileType ft = GetFileType(soap->path);
+	// GetFullFilePath here.
 	hFile = SelectFile(soap, ft);
 
     if (hFile == INVALID_HANDLE_VALUE) 
@@ -587,9 +586,7 @@ int MyHttpGet(struct soap *soap)
     }
     if (SUCCEEDED(hr))
     {
-        ShowInfo("get file success!", strlen("get file success!"));
-        int status = 0;
-		int pushed = -1;
+        //ShowInfo("get file success!", strlen("get file success!"));
         do {
             int start = -1;
             int end = -1;
@@ -600,82 +597,42 @@ int MyHttpGet(struct soap *soap)
 
             if (ft == HTML)
             {
-                // search for <% %>
-                for (int i = 0; i < dwBytesRead; i++)
-                {
-                    switch (ChangeState(&status, read_buf + i))
-                    {
-						case 0:
-						{
-							while (pushed < i)
-							{
-								pushed++;
-								if (pushed < 0)
-								{
-									pushStack(&bufStack, "<");
-								}
-								else
-								{
-									pushStack(&bufStack, read_buf + pushed);
-								}
-							}
-							break;
-						}
-                        case 1:
-                        {
-							if (pushed + 1 < i)
-							{
-								pushed++;
-								if (pushed < 0)
-								{
-									pushStack(&bufStack, "<");
-								}
-								else
-								{
-									pushStack(&bufStack, read_buf + pushed);
-								}
-							}
-                            break;
-                        }
-                        case 4:
-                        {
-                            pushed = i;
-							status = 0;
-							SendConfigTable(soap, &bufStack);
-							break;
-                        }
-						default:
-							break;
-                    }
-                }
-				if (status == 1)
+				CloseHandle(hFile);
+				// 若以Unicode字符的方式打开的文件，必须重新打开，
+				// 否则读不出数据。
+				hFile = OpenWebFileA("index.htm");
+				int hCrt = _open_osfhandle((intptr_t)hFile, _O_RDONLY | _O_TEXT);
+				FILE *hfHtml = _fdopen(hCrt, "rt");
+				if (hfHtml != NULL)
 				{
-					pushed -= dwBytesRead;
+					GetHtml(soap, hfHtml);
 				}
-				else
-				{
-					pushed = -1;
-				}
-				if (bufStack.index > 0)
-				{
-					soap_send_raw(soap, bufStack.pBuffer, bufStack.index);
-					emptyStack(&bufStack);
-				}
+				//这里不需要关闭文件
+				//请求完成时会调用CloseHandle，如果这里调用
+				//fclose(hfHtml);
+				//再调用CloseHandle会出错。
+				//所以这里不用关闭文件
             }
             else
             {
                 soap_send_raw(soap, read_buf, dwBytesRead);
             }
         } while (!(dwBytesRead < BUFFER_SIZE));
-    }    
+    }
     soap_end_send(soap);
     CloseHandle(hFile);
 	WriteLog("MyHttpGet %s", soap->path);
-	deleteStack(&bufStack);
 
     return SOAP_OK;
 }
 
+void MyCloseSoap(struct soap *psoap)
+{
+    soap_destroy(psoap);
+    soap_end(psoap);
+    soap_done(psoap);
+    free(psoap);
+}
 
 DWORD WINAPI ProcessRequest(LPVOID lpThreadParam)
 {
@@ -684,10 +641,7 @@ DWORD WINAPI ProcessRequest(LPVOID lpThreadParam)
     {
         MessageBox(0, _T("soap_serve Error!"), _T("Error"), MB_OK);
     }
-    soap_destroy(psoap);
-    soap_end(psoap);
-    soap_done(psoap);
-    free(psoap);
+	MyCloseSoap(psoap);
     return 0;
 }
 
@@ -712,7 +666,7 @@ void my_soap_init(struct soap *pSoap)
 	pSoap->fget = MyHttpGet;//CRT;
 }
 BOOL promptCreated = false;
-void CgSoapMFCServerDlg::OnTestClicked()
+void CgSoapMFCServerDlg::OnClickedTest()
 {
     // TODO: Add your control notification handler code here
     if (promptCreated)
@@ -722,7 +676,7 @@ void CgSoapMFCServerDlg::OnTestClicked()
     else
     {
         this->OnClickedCreateConsole();
-        this->OnTestClicked();
+        this->OnClickedTest();
     }
 }
 
@@ -745,4 +699,14 @@ void CgSoapMFCServerDlg::OnClickedFreeConsole()
     CloseStdConsoleCRT();
     FreeConsole();
     promptCreated = false;
+}
+
+void CgSoapMFCServerDlg::OnClickedStopSvr()
+{
+	// TODO: Add your control notification handler code here
+	if (hSoapServerThd != NULL)
+	{
+		CloseHandle(hSoapServerThd);
+		hSoapServerThd = NULL;
+	}
 }
