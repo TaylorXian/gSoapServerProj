@@ -1,3 +1,11 @@
 //TODO: 1.将gSoap编译成静态库
 # ruby code
 puts "Hello World!"
+//Some questions
+不知道javascript的xmlDocument 如何作为 jQuery.ajax的data来发送。
+始终没有发生XMLHttpRequest。不知道为什么。
+所以只能用字符串的方式。
+使用ajax调用web服务的时候，回调函数的参数的类型是和XMLHttpResponse中，
+Header的Content-Type直接相关的，如果为texl/xml，那么参数就是Document类型，
+若为text/*，那么参数类型实际为string，Javascript中可以用typeof获取类型，
+类型可以为"undefined" "object" "string" 等等。
