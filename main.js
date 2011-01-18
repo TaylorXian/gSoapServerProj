@@ -1,4 +1,4 @@
-var soap_req = "";
+var soap_req;
 function done() {
     b = true;
     $('table').find('td').each(function () {
@@ -56,8 +56,8 @@ $(document).ready(function() {
         jQuery.ajax({
             type: "POST", //"GET",
             url: document.URL,
-            contentType: "application/*",
-            data: soap_req.toString(),
+            data: soap_req,
+            dataType: "xml",
             success: function(result) {
                 $('#lblInfo').text("Íê³É...");
                 $(result).find('result').each(function() {
@@ -88,9 +88,19 @@ $(document).ready(function() {
             contentType: "application/soap",
             success: function(result) {
                 soap_req = result;
-                soap_req = soap_req.replace('<key></key>', '<key>' + $('#txtKey').attr("value") + '</key>');
-                soap_req = soap_req.replace('<value></value>', '<value>' + $('#txtVal').attr("value") + '</value>');
-                $('#btn').click();
+                typeof soap_req;
+                if (typeof(soap_req) == "object")
+                {
+                    $(soap_req).find('key').text($('#txtKey').attr("value"));
+                    $(soap_req).find('value').text($('#txtVal').attr("value"));
+                    $('#btn').click();
+                }
+                if (typeof(soap_req) == "string")
+                {
+                    soap_req = soap_req.replace('<key></key>', '<key>' + $('#txtKey').attr("value") + '</key>');
+                    soap_req = soap_req.replace('<value></value>', '<value>' + $('#txtVal').attr("value") + '</value>');
+                    $('#btn').click();
+                }
             }
         });
     });

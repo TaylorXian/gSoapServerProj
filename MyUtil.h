@@ -1,5 +1,9 @@
+extern LPCSTR pszLogFile;
+extern LPCSTR pszHomeHtml;
+extern LPCSTR pszSoapXml;
+
 typedef enum {
-    HTML, JS, CSS, OTHER
+    HTML, JS, CSS, INI, LOG, OTHER
 } FileType;
 
 FileType GetFileType(const char* path)
@@ -22,27 +26,38 @@ FileType GetFileType(const char* path)
     return OTHER;
 }
 
-FileType GetFileFullPath(LPSTR lpszFullpath, LPCSTR soapPath)
+FileType GetFileFullPath(LPSTR lpszFullpath, LPCSTR path)
 {
+    // 部署到Wince上时 这里要修改
     LPCSTR lpszFormat = ".%s";
-    if (soapPath)
+    if (path)
     {
-        if (strstr(soapPath, ".htm") || !strcmp(soapPath, "/"))
+        if (strstr(path, ".htm") || !strcmp(path, "/"))
         {
-            sprintf(lpszFullpath, lpszFormat, "/index.htm");
+            sprintf(lpszFullpath, lpszFormat, pszHomeHtml);
             return HTML;
         }
-        if (strstr(soapPath, ".js")) 
+        if (strstr(path, ".js")) 
         {
-            sprintf(lpszFullpath, lpszFormat, soapPath);
+            sprintf(lpszFullpath, lpszFormat, path);
             return JS;
         }
-        if (strstr(soapPath, ".css"))
+        if (strstr(path, ".css"))
         {
-            sprintf(lpszFullpath, lpszFormat, soapPath);
+            sprintf(lpszFullpath, lpszFormat, path);
             return CSS;
         }
-        sprintf(lpszFullpath, lpszFormat, soapPath);
+        if (strstr(path, ".log"))
+        {
+            sprintf(lpszFullpath, lpszFormat, path);
+            return LOG;
+        }
+        if (strstr(path, ".ini"))
+        {
+            sprintf(lpszFullpath, lpszFormat, path);
+            return LOG;
+        }
+        sprintf(lpszFullpath, lpszFormat, pszSoapXml);
     }
     return OTHER;
 }
@@ -61,10 +76,12 @@ void WriteLog(const char* info_format, ...)
     //time_t t;
     //time(&t);
     char time_str[64] = {0};
+    char logpath[64] = {0};
+    GetFileFullPath(logpath, pszLogFile);
     sprintf(time_str, "%4d/%2d/%2d %2d:%2d:%2d %4dms ... ", timeNow.wYear, timeNow.wMonth, timeNow.wDay,
         timeNow.wHour, timeNow.wMinute, timeNow.wSecond, timeNow.wMilliseconds);
     //strftime(time_str, sizeof(time_str), "%Y/%m/%d %H:%M:%S %z...", localtime(&t));
-	pfLog = fopen("soap.log", "a+");
+	pfLog = fopen(logpath, "a+");
 	fprintf(pfLog, "%s", time_str);
 	vfprintf(pfLog, info_format, arg_ptr);
 	fprintf(pfLog, "\n");

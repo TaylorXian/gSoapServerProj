@@ -108,8 +108,10 @@ HANDLE MyOpenFile(
 HRESULT GenerateConfigTable();
 void my_soap_init(struct soap *pSoap);
 void SoapErr(struct soap *soap);
-LPCTSTR lpszCfgFile = _T("./test.ini");
-PCSTR pszCfgFile = "./test.ini";
+LPCSTR pszCfgFile = "/test.ini";
+LPCSTR pszLogFile = "/soap.log";
+LPCSTR pszHomeHtml = "/index.htm";
+LPCSTR pszSoapXml = "/ns.winconfig.req.xml";
 HANDLE hSoapServerThd = NULL;
 DWORD soapSvrThdid;
 BOOL startSvr = false;
@@ -127,7 +129,9 @@ void SoapSendMyStack(struct soap *pSoap, poutStackBuffer pStack)
 void GenerateConfigTableCRT(struct soap *pSoap, poutStackBuffer pStack)
 {
     const int BUFFER_SIZE = 128;
-    FILE *pCfgFile = OpenWebFileCRT("config.ini");
+    char fullpath[64] = {0};
+    GetFileFullPath(fullpath, pszCfgFile);
+    FILE *pCfgFile = OpenWebFileCRT(fullpath);
     if (pCfgFile == NULL) 
     {
 		ShowInfo("file not found!");
@@ -333,8 +337,14 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
         result = false;
         return -1;
 	}
+	char filename[64] = {0};
+	GetFileFullPath(filename, pszCfgFile);
+	int len = strlen(filename) + 1;
+	wchar_t* szFullpath = new wchar_t[len];
+	MbToWc(filename, -1, szFullpath, len);
+
 	HANDLE hCfgFile = MyOpenFile(
-	                            _T("./test.ini"), 
+	                            szFullpath, 
                                 GENERIC_READ | GENERIC_WRITE,
                                 FILE_SHARE_READ | FILE_SHARE_WRITE);
     if (hCfgFile == INVALID_HANDLE_VALUE)
@@ -342,6 +352,7 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
         result = false;
         return HRESULT_FROM_WIN32(GetLastError());
     }
+	delete[] szFullpath;
     DWORD FindKey(HANDLE, LPSTR, LPSTR);
     DWORD pFile = FindKey(hCfgFile, key, value);
     CloseHandle(hCfgFile);
@@ -513,57 +524,34 @@ void SoapErr(struct soap *soap)
     soap_print_fault(soap, stderr);
 }
 
-HANDLE SelectFile(struct soap *soap, FileType ft)
+VOID MIMEType4FileType(struct soap *soap, FileType ft)
 {
-	HANDLE hFile;
 	switch (ft)
     {
-        // HTTP response header with text/html
         case HTML:
-		{
+            // HTTP response header with text/html
 		    soap->http_content = "text/html; charset=gb2312";
-            if (strstr(soap->path, "test"))
-            {
-                hFile = OpenWebFile(_T("./test.htm"));
-            }
-            else
-            {
-                hFile = OpenWebFile(_T("./index.htm"));
-            }
             break;
-		}
 		case JS:
-		{
-		    soap->http_content = "application/x-javascript; charset=UTF-8";
-		    if (strstr(soap->path, "main"))
-		    {
-                hFile = OpenWebFile(_T("./main.js"));
-		    }
-		    else
-		    {
-                hFile = OpenWebFile(_T("./jquery-1.4.4.min.js"));
-            }
+		    soap->http_content = "application/x-javascript;";
             break;
-		}
         case CSS: 
-		{
 		    soap->http_content = "text/css";
-			hFile = OpenWebFile(_T("./main.css"));
             break;
-		}
         default:
-		{
-		    soap->http_content = "text/xml; charset=UTF-8";
-			if (rand() % 2 + 1)
-			{
-				hFile = OpenWebFile(_T("./ns.winconfig.req.xml"));
-			}
-			else
-			{
-				hFile = OpenWebFile(_T("./ns.add.req.xml"));
-			}
-		}
+		    soap->http_content = "text/*; charset=UTF-8";
     }
+}
+
+HANDLE SelectFile(LPCSTR lpszFilename)
+{
+	HANDLE hFile;
+	// GetFullFilePath here.
+	int len = strlen(lpszFilename) + 1;
+	wchar_t* szFullpath = new wchar_t[len];
+	MbToWc(lpszFilename, -1, szFullpath, len);
+	hFile = OpenWebFile(szFullpath);
+	delete[] szFullpath;
 
 	return hFile;
 }
@@ -575,13 +563,12 @@ int MyHttpGet(struct soap *soap)
     HANDLE hFile;
     DWORD dwBytesRead = 0;
     char read_buf[BUFFER_SIZE] = {0};
-    
-	soap_response(soap, SOAP_FILE);
-	//ShowInfo(soap->path);
-	FileType ft = GetFileType(soap->path);
-	// GetFullFilePath here.
-	hFile = SelectFile(soap, ft);
+    char szFilename[64] = {0};
 
+	soap_response(soap, SOAP_FILE);
+	FileType ft = GetFileFullPath(szFilename, soap->path);
+	MIMEType4FileType(soap, ft);
+	hFile = SelectFile(szFilename);
     if (hFile == INVALID_HANDLE_VALUE) 
     {
         ShowInfo("get file error!");
