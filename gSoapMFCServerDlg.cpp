@@ -113,58 +113,56 @@ HANDLE hSoapServerThd = NULL;
 DWORD soapSvrThdid;
 BOOL startSvr = false;
 
-int ChangeStateCRT(int *pState, char *pCh)
+void GenerateConfigTableCRT(poutStackBuffer pStack)
 {
-    switch(*pState)
+    const int BUFFER_SIZE = 128;
+    FILE *pCfgFile = OpenWebFileCRT("config.ini");
+    if (pCfgFile == NULL) 
     {
-        case 0:
-        {
-            if (*pCh == '<')
-            {
-                *pState = 1;
-            }
-            break;
-        }
-        case 1:
-        {
-            if (*pCh == '%')
-            {
-                *pState = 2;
-            }
-            else if (*pCh == '<')
-            {
-            }
-            else
-            {
-                *pState = 0;
-            }
-            break;
-        }
-        case 2:
-        {
-            if (*pCh == '%')
-            {
-                *pState = 3;
-            }
-            break;
-        }
-        case 3:
-        {
-            if (*pCh == '>')
-            {
-                *pState = 4;
-            }
-            else
-            {
-                *pState = 2;
-            }
-            break;
-        }
-        default:
-            return *pState;
+		ShowInfo("file not found!");
+		return;
     }
+    LPSTR lpBuffer = new CHAR[BUFFER_SIZE];
+    if (lpBuffer)
+    {
+        ZeroMemory(lpBuffer, BUFFER_SIZE);
+    }
+
+    LPCSTR table = "<table id='config'>";
+    pushStack(pStack, table, strlen(table));
+    DWORD dwBytesRead = 0;
+    int state = 0;
+    do {
+        dwBytesRead = ReadFileBytesCRT(pCfgFile, lpBuffer, BUFFER_SIZE);
+        int start = 0;
+        int indexHtml = 0;
+        for (int i = 0; i < dwBytesRead; i++)
+        {
+			switch (PushStackAsStateChanged(pStack, &state, lpBuffer + i))
+			{
+				case 1:
+				case 3:
+				{
+					pushStack(pStack, lpBuffer + i);
+				}
+				default:
+					break;
+			}
+        }
+		if (pStack->index > 0)
+        {
+			printf("%s", pStack->pBuffer);
+			emptyzeroStack(pStack);
+        }
+    } while (!(dwBytesRead < BUFFER_SIZE));
+    pushStack(pStack, "</table>", strlen("</table>"));
     
-    return *pState;
+    if (lpBuffer) 
+    {
+        delete[] lpBuffer;
+        lpBuffer = NULL;
+    }
+    fclose(pCfgFile);
 }
 
 void gethtmltest()
@@ -183,68 +181,55 @@ void gethtmltest()
     ShowInfo("get file success!");
     DWORD dwBytesRead = 0;
     int status = 0;
-    char ch = '\0';
+    char lastCh = '\0';
 	int pushed = -1;
     do {
         int start = -1;
         int end = -1;
         ZeroMemory(read_buf, BUFFER_SIZE);
         dwBytesRead = ReadFileBytesCRT(pf, read_buf, BUFFER_SIZE);
-        printf("%s", read_buf);
         // search for <% %> 不能嵌套使用
         for (int i = 0; i < dwBytesRead; i++)
         {
-            if (status == 0)
+			char ch = *(read_buf + i);
+            switch (ch)
             {
-			    pushStack(&bufStack, read_buf + i);
-            }
-            switch (ChangeStateCRT(&status, read_buf + i))
-            {
-                case '>':
-                {
-				    if (bufStack.index > 1 && *(bufStack.pBuffer + bufStack.index - 2) == '%')
-				    {
-					    if (topStack(&bufStack) == '%')
-					    {
-					        popStack(&bufStack);
-					        status++;
-				            break;
-					    }
-				    }
-                    break;
-                }
-			    case '%':
-			    {
-				    if (bufStack.index < 2)
-				    {
-				        break;
-				    }
-				    if (status == 0)
-				    {
-				        if (*(bufStack.pBuffer + bufStack.index - 2) != '<')
-					    {
-					        break;
-					    }
-					    else
-					    {
-					        popStack(&bufStack);
-					        status++;
-					    }
-				    }
-					
-			    }
+				case '\t':
                 case '\r':
                 case '\n':
-				    popStack(&bufStack);
 				    break;
+			    case '%':
+			    {
+				    if (status == 0 && lastCh == '<')
+				    {
+				        popStack(&bufStack);
+						GenerateConfigTableCRT(&bufStack);
+				        status++;
+				    }
+			    }
+                case '>':
+                {
+				    if (status == 1 && lastCh == '%')
+				    {
+				        status--;
+			            break;
+				    }
+                }
 			    default:
-				    break;
+                {
+					if (status == 0)
+					{
+						pushStack(&bufStack, ch);
+					}
+                }
             }
+			lastCh = ch;
         }
-		//if (bufStack.index > 0)
-		//{
-		//	emptyStack(&bufStack);
-		//}
+		if (bufStack.index > 0)
+		{
+			printf("%s", bufStack.pBuffer);
+			emptyzeroStack(&bufStack);
+		}
     } while (!(dwBytesRead < BUFFER_SIZE));
     fclose(pf);
 	deleteStack(&bufStack);
@@ -526,286 +511,6 @@ void SoapErr(struct soap *soap)
 {
     WriteLog(NULL);
     soap_print_fault(soap, stderr);
-}
-
-int ConfigChangeState(int *pState, char *pCh)
-{
-    switch(*pState)
-    {
-        case 0:
-        {
-            if (*pCh == '=')
-            {
-                *pState = 2;
-            }
-            else if (*pCh == '\r' || *pCh == '\n')
-            {
-                // *pState = 4;
-            }
-            else
-            {
-                *pState = 1;
-            }
-            break;
-        }
-        case 1:
-        {
-            if (*pCh == '=')
-            {
-                *pState = 2;
-            }
-            else if (*pCh == '\r' || *pCh == '\n')
-            {
-                *pState = 4;
-            }
-            break;
-        }
-        case 2:
-        {
-            if (*pCh == '\r' || *pCh == '\n')
-            {
-                *pState = 4;
-            }
-            else if (*pCh != '=')
-            {
-                *pState = 3;
-            }
-            break;
-        }
-        case 3:
-        {
-            if (*pCh == '\r' || *pCh == '\n')
-            {
-                *pState = 4;
-            }
-            break;
-        }
-        case 4:
-        {
-            if (*pCh == '\r' || *pCh == '\n')
-            {
-                *pState = 0;
-            }
-            else if (*pState == '=')
-            {
-                *pState = 2;
-            }
-			else
-			{
-                *pState = 1;
-			}
-            break;
-        }
-        default: {}
-    }
-    return *pState;
-}
-
-int PushStackAsStateChanged(poutStackBuffer pStack, int *pState, char *pCh)
-{
-    int preState = *pState;
-    ConfigChangeState(pState, pCh);
-    switch (preState)
-    {
-        case 0:
-        {
-            switch (*pState)
-            {
-                case 1:
-                {
-    				pushStack(pStack, "<tr><td>", 8);
-                    break;
-                }
-                case 2:
-                {
-    				pushStack(pStack, "<tr><td></td>", 13);
-                    break;
-                }
-                default: {}
-            }
-            break;
-        }
-        case 1:
-        {
-            switch (*pState)
-            {
-                case 2:
-                {
-    				pushStack(pStack, "</td>", 5);
-                    break;
-                }
-                case 4:
-                {
-    				pushStack(pStack, "</td><td>=</td><td></td></tr>", 29);
-                    break;
-                }
-                default: {}
-            }
-            break;
-        }
-        case 2:
-        {
-            switch (*pState)
-            {
-                case 3:
-                {
-				    LPCSTR html= "<td>=</td><td>";
-				    pushStack(pStack, html, strlen(html));
-                    break;
-                }
-                case 4:
-                {
-    				pushStack(pStack, "<td>=</td><td></td></tr>", 24);
-                    break;
-                }
-                default: {}
-            }
-            break;
-        }
-        case 3:
-        {
-            switch (*pState)
-            {
-                case 4:
-                {
-				    LPCSTR html = "</td></tr>";
-				    pushStack(pStack, html, strlen(html));
-                    break;
-                }
-                default: {}
-            }
-            break;
-        }
-        case 4:
-        {
-            switch (*pState)
-            {
-                case 1:
-                {
-                    pushStack(pStack, "<tr><td>", 8);
-                    break;
-                }
-                case 2:
-                {
-                    pushStack(pStack, "<tr><td></td>", 13);
-                    break;
-                }
-                default: {}
-            }
-            break;
-        }
-        default: {}
-    }
-    return *pState;
-}
-
-HRESULT SendConfigTable(struct soap* pSoap, poutStackBuffer pStack)
-{
-    HRESULT hr;
-    const int BUFFER_SIZE = 128;
-    HANDLE hCfgFile = OpenWebFile(_T("./test.ini"));
-    if (hCfgFile == INVALID_HANDLE_VALUE) 
-    {
-        hr = HRESULT_FROM_WIN32(::GetLastError());
-    }
-    LPSTR lpBuffer = new CHAR[BUFFER_SIZE];
-    if (lpBuffer)
-    {
-        ZeroMemory(lpBuffer, BUFFER_SIZE);
-    }
-
-    LPCSTR table = "<table id='config'>";
-    pushStack(pStack, table, strlen(table));
-    DWORD dwBytesRead = 0;
-    int state = 0;
-    do {
-        hr = ReadFileToBuffer(hCfgFile, 
-            lpBuffer, BUFFER_SIZE, &dwBytesRead);
-        //CopyMemory(lpHtmlBuffer, lpBuffer, dwBytesRead);
-        int start = 0;
-        int indexHtml = 0;
-        for (int i = 0; i < dwBytesRead; i++)
-        {
-			switch (PushStackAsStateChanged(pStack, &state, lpBuffer + i))
-			{
-				case 1:
-				case 3:
-				{
-					pushStack(pStack, lpBuffer + i);
-				}
-				default:
-					break;
-			}
-        }
-		if (pStack->index > 0)
-        {
-			soap_send_raw(pSoap, pStack->pBuffer, pStack->index);
-			emptyStack(pStack);
-        }
-    } while (!(dwBytesRead < BUFFER_SIZE));
-    pushStack(pStack, "</table>", strlen("</table>"));
-    
-    if (lpBuffer) 
-    {
-        delete[] lpBuffer;
-        lpBuffer = NULL;
-    }
-    CloseHandle(hCfgFile);
-    return hr;
-}
-
-int ChangeState(int *pState, char *pCh)
-{
-    switch(*pState)
-    {
-        case 0:
-        {
-            if (*pCh == '<')
-            {
-                *pState = 1;
-            }
-            break;
-        }
-        case 1:
-        {
-            if (*pCh == '%')
-            {
-                *pState = 2;
-            }
-            else if (*pCh == '<')
-            {
-            }
-            else
-            {
-                *pState = 0;
-            }
-            break;
-        }
-        case 2:
-        {
-            if (*pCh == '%')
-            {
-                *pState = 3;
-            }
-            break;
-        }
-        case 3:
-        {
-            if (*pCh == '>')
-            {
-                *pState = 4;
-            }
-            else
-            {
-                *pState = 2;
-            }
-            break;
-        }
-        default:
-            return *pState;
-    }
-    
-    return *pState;
 }
 
 HANDLE SelectFile(struct soap *soap, FileType ft)

@@ -92,6 +92,12 @@ HANDLE OpenWebFile(LPCTSTR lpszFilename)
                     FILE_SHARE_READ);
 }
 
+FILE* OpenWebFileCRT(LPCSTR lpszFilename)
+{
+	// GetFullFilePath here.
+    return OpenFileReadCRT(lpszFilename);
+}
+
 HRESULT ReadFileToBuffer(HANDLE hFile, LPVOID read_buf, DWORD buf_len, LPDWORD lpdwBytesRead)
 {
     HRESULT hr = S_OK;

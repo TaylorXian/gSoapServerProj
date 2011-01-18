@@ -3,6 +3,10 @@ typedef struct {
 	int stackLength;
 	char * pBuffer;
 } outStackBuffer, * poutStackBuffer;
+void zeroStack(poutStackBuffer pStack)
+{
+	ZeroMemory(pStack->pBuffer, pStack->stackLength);
+}
 
 bool initStack(poutStackBuffer pStack, int totalLength = 0)
 {
@@ -19,6 +23,7 @@ bool initStack(poutStackBuffer pStack, int totalLength = 0)
 
 	if (pStack->pBuffer > 0)
 	{
+		zeroStack(pStack);
 		return true;
 	}
 	pStack->pBuffer = NULL;
@@ -37,15 +42,20 @@ void deleteStack(poutStackBuffer pStack)
 	pStack->stackLength = 0;
 }
 
-int pushStack(poutStackBuffer pStack, const char * pChar)
+int pushStack(poutStackBuffer pStack, const char ch)
 {
 	if (pStack->index < pStack->stackLength)
 	{
-		*(pStack->pBuffer + pStack->index) = *pChar;
+		*(pStack->pBuffer + pStack->index) = ch;
 		pStack->index++;
 		return pStack->index;
 	}
 	return -1;
+}
+
+int pushStack(poutStackBuffer pStack, const char * pChar)
+{
+	return pushStack(pStack, *pChar);
 }
 
 int pushStack(poutStackBuffer pStack, const char * pChar, int length)
@@ -62,6 +72,12 @@ int pushStack(poutStackBuffer pStack, const char * pChar, int length)
 void emptyStack(poutStackBuffer pStack)
 {
 	pStack->index = 0;
+}
+
+void emptyzeroStack(poutStackBuffer pStack)
+{
+	emptyStack(pStack);
+	zeroStack(pStack);
 }
 
 char popStack(poutStackBuffer pStack)
