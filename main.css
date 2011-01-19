@@ -1,4 +1,5 @@
-body {
+body
+{
     background-color: Transparent;
     font-size: 12pt;
     margin: 0;
@@ -6,11 +7,13 @@ body {
     text-align: center;
     vertical-align: middle;
 }
-div {
+div
+{
     display: block;
     width: 100%;
 }
-table {
+table
+{
     margin: 0 auto;
     width: 72%;
     text-align: center;
@@ -20,20 +23,37 @@ table {
 {
     background: #FDFDFD;
 }
-#header {
+#header
+{
     padding: 36px;
     min-height: 50px;
 }
-#main {
+#header > #nav
+{
+    background: #EFEFEF;
+    width: 100%;
+    padding: 36px;
+    min-height: 50px;
+}
+#header > #nav > a
+{
+    background: #EFEFEF;
+    width: 100%;
+    padding: 36px;
+    min-height: 50px;
+}
+#main
+{
     min-height: 360px;
 }
-div.line {
+div.line
+{
     line-height: 120%;
     clear: left;
 }
 div.invisible
 {
-	display: none;
+    display: none;
     position: fixed;
     width: 360px;
     height: 120px;
@@ -49,14 +69,34 @@ div.invisible > span
 {
     width: inherit;
 }
-table td {
+table td
+{
     border: 1px solid gray;
 }
-#footer {
+#footer
+{
     clear: both;
     min-height: 25px;
 }
-#footer > span {
+#footer > span
+{
     font-size: 0.8em;
-}/*
-*/
+    text-decoration: underline;
+}
+#dialog
+{
+}
+
+#dialog > div.top
+{
+    margin: 16px auto;
+    float: left;
+}
+
+#dialog > div.bottom
+{
+    margin: auto auto 16px auto;
+    clear: left;
+    float: left;
+}
+/**/
