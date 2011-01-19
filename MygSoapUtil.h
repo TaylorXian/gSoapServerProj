@@ -25,7 +25,7 @@ DWORD WINAPI StartgSoapServer(LPVOID lpThreadParam)
 	// 
 	m = soap_bind(&calc_soap, 
 	    NULL, // 任何IP地址都可以访问
-	    18083, // 端口
+	    HTTP_SVR_PORT, // 端口
 	    100); // 请求队列的长度
 	if (m < 0) //!soap_valid_socket(m)
 	{

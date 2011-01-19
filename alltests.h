@@ -138,3 +138,8 @@ VOID CloseStdConsoleCRT()
     fclose(stdout);
     fclose(stdin);
 }
+
+void AllTests()
+{
+    //gethtmltest();
+}

@@ -253,6 +253,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\MygSoapServer.h"
+				>
+			</File>
+			<File
 				RelativePath=".\MygSoapUtil.h"
 				>
 			</File>

@@ -1,6 +1,7 @@
 extern LPCSTR pszLogFile;
 extern LPCSTR pszHomeHtml;
 extern LPCSTR pszSoapXml;
+extern LPCSTR lpszFormat;
 
 typedef enum {
     HTML, JS, CSS, INI, LOG, OTHER
@@ -28,8 +29,6 @@ FileType GetFileType(const char* path)
 
 FileType GetFileFullPath(LPSTR lpszFullpath, LPCSTR path)
 {
-    // 部署到Wince上时 这里要修改
-    LPCSTR lpszFormat = ".%s";
     if (path)
     {
         if (strstr(path, ".htm") || !strcmp(path, "/"))
