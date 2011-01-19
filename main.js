@@ -43,7 +43,7 @@ function update() {
     if (l < 0) l = 0;
     k = $(document.getElementById('config').rows).get(this.id).cells[0];
     v = $(document.getElementById('config').rows).get(this.id).cells[2];
-    $('#dialog').css({ position: "fixed", top: t, left: l });
+    $('#dialog').css({ bottom: t, right: l });
     $('#dialog').show('slow', function() {
         $('#txtKey').attr("value", $(k).text());
         $('#txtVal').attr("value", $(v).text()).focus();
