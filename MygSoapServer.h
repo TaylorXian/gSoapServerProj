@@ -389,6 +389,10 @@ DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
             emptyStack(&stack);
         }
     }
+	if (!MySetFileEnd(hCfgFile, rStart))
+	{
+		return 0;
+	}
     delete[] pBuffer;
     deleteStack(&stack);
     return dwBytesWritten;
@@ -659,5 +663,9 @@ DWORD FindKeyLite(HANDLE hCfgFile, LPSTR key, LPSTR val)
     }
     delete[] pBuffer;
     deleteStack(&stack);
+	if (!MySetFileEnd(hCfgFile, rStart))
+	{
+		return 0;
+	}
     return dwBytesWritten;
 }

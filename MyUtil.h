@@ -65,6 +65,16 @@ DWORD GetFileCurrentPointer(HANDLE hFile)
 {
     return SetFilePointer(hFile, 0, NULL, FILE_CURRENT);
 }
+BOOL MySetFileEnd(HANDLE hFile, int oldDataEnd)
+{
+	int newEndFile = GetFileCurrentPointer(hFile);
+	if (newEndFile < oldDataEnd)
+	{
+		return SetEndOfFile(hFile);
+	}
+	return true;
+}
+
 void WriteLog(const char* info_format, ...)
 {
     SYSTEMTIME timeNow;
