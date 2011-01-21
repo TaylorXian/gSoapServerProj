@@ -257,8 +257,8 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
         return HRESULT_FROM_WIN32(GetLastError());
     }
 	delete[] szFullpath;
-    DWORD FindKey(HANDLE, LPSTR, LPSTR);
-    DWORD pFile = FindKey(hCfgFile, key, value);
+    DWORD FindKeyLite(HANDLE, LPSTR, LPSTR);
+    DWORD pFile = FindKeyLite(hCfgFile, key, value);
     CloseHandle(hCfgFile);
     if (pFile == 0)
     {
@@ -290,7 +290,7 @@ DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
     int status = 0;
     //SetFilePointer();
     pushStack(&stack, key, strlen(key));
-    pushStack(&stack, "=");
+    pushStack(&stack, '=');
     pushStack(&stack, val, strlen(val));
     pushStack(&stack, "\r");
     pushStack(&stack, "\n");
@@ -530,4 +530,134 @@ void my_soap_init(struct soap *pSoap)
 	//soap_set_mode(pSoap, SOAP_C_MBSTRING);
 	//soap_omode(&calc_soap, SOAP_C_MBSTRING);
 	pSoap->fget = MyHttpGet;//CRT;
+}
+
+DWORD FindKeyLite(HANDLE hCfgFile, LPSTR key, LPSTR val)
+{
+    int ConfigChangeState(int*, char*);
+    const int BUFFER_SIZE = 128;
+    outStackBuffer stack;
+    initStack(&stack, (strlen(key) + strlen(val) + BUFFER_SIZE) * 2);
+    LPSTR pBuffer = new CHAR[BUFFER_SIZE];
+    LPSTR pKey = key;
+    DWORD dwBytesRead = 0;
+    DWORD dwBytesWritten = 0;
+    int i = 0;
+    int rStart = -1;
+    int wStart = -1;
+    int status = 0;
+    //SetFilePointer();
+    pushStack(&stack, key, strlen(key));
+    pushStack(&stack, '=');
+    pushStack(&stack, val, strlen(val));
+    pushStack(&stack, '\r');
+    pushStack(&stack, '\n');
+    do {
+        i = 0;
+        dwBytesRead = 0;
+        dwBytesWritten = 0;
+        ZeroMemory(pBuffer, BUFFER_SIZE);
+        if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
+        {
+            // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
+            rStart = GetFileCurrentPointer(hCfgFile);
+            if (status >= 3 && stack.index > 0 && (wStart + stack.index < rStart))
+            {
+                SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
+                if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+                {
+                    wStart += dwBytesWritten;
+                    emptyStack(&stack);
+                }
+                SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
+            }
+            for (i = 0; i < dwBytesRead; i++)
+            {
+                char ch = *(pBuffer + i);
+                switch(status)
+                {
+					case 0:
+                    {
+                        wStart = GetFileCurrentPointer(hCfgFile) - dwBytesRead + i;
+                    }
+                    case 1:
+                    {
+                        if (ch == *pKey)
+                        {
+                            pKey++;
+                            if (*pKey == '\0')
+                            {
+                                status = 2;
+                            }
+                            else
+                            {
+                                status = 1;
+                            }
+                        }
+                        else
+                        {
+                            status = -1;
+                        }
+                        break;
+                    }
+                    case 2:
+                    {
+                        if (ch == ' ' || ch == '\t')
+                        {
+                        }
+                        else if (ch == '=' || ch == '\r' || ch == '\n')
+                        {
+                            status = 3;
+                        }
+                        else
+                        {
+                            status = -1;
+                        }
+                        break;
+                    }
+                    case 3:
+                    {
+                        if (ch == '\n')
+                        {
+                            status = 4;
+                        }
+                        break;
+                    }
+                    case 4:
+                    {
+                        pushStack(&stack, ch);
+                        break;
+                    }
+                    case -1:
+                    {
+                        wStart = -1;
+                        pKey = key;
+                        if (ch == '\n')
+                        {
+                            status = 0;
+                        }
+                    }
+                    default:
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+    } while (!(dwBytesRead < BUFFER_SIZE - 1));
+    if (stack.index > 0)
+    {
+        if (status >= 3 && wStart > -1)
+        {
+            SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
+        }
+        if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+        {
+            wStart += dwBytesWritten;
+            emptyStack(&stack);
+        }
+    }
+    delete[] pBuffer;
+    deleteStack(&stack);
+    return dwBytesWritten;
 }

@@ -1,4 +1,8 @@
 var soap_req;
+function getUrl(path)
+{
+    return document.URL.substring(0, document.URL.lastIndexOf('/')) + '/' + path;
+}
 function done() {
     b = true;
     $('table').find('td').each(function () {
@@ -84,7 +88,7 @@ $(document).ready(function() {
         $('#lblInfo').text("∑¢ÀÕ«Î«Û...");
         jQuery.ajax({
             type: "GET", //"POST", 
-            url: document.URL + "getsoapdata",
+            url: getUrl("getsoapdata"),
             contentType: "application/soap",
             success: function(result) {
                 soap_req = result;
