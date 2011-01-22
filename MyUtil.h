@@ -31,9 +31,21 @@ FileType GetFileFullPath(LPSTR lpszFullpath, LPCSTR path)
 {
     if (path)
     {
-        if (strstr(path, ".htm") || !strcmp(path, "/"))
+        if (!strcmp(path, "/"))
         {
             sprintf(lpszFullpath, lpszFormat, pszHomeHtml);
+            return HTML;
+        }
+        if (strstr(path, ".htm"))
+        {
+            if (strstr(path, "?"))
+            {
+                sprintf(lpszFullpath, lpszFormat, pszHomeHtml);
+            }
+            else
+            {
+                sprintf(lpszFullpath, lpszFormat, path);
+            }
             return HTML;
         }
         if (strstr(path, ".js")) 

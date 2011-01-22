@@ -7,11 +7,12 @@
 
 #ifndef WINCE
 #define HTTP_SVR_PORT 18083
+LPCSTR pszCfgFile = "/test.ini";
 #else
 #define HTTP_SVR_PORT 80
+LPCSTR pszCfgFile = "/config.ini";
 #endif
 
-LPCSTR pszCfgFile = "/test.ini";
 LPCSTR pszLogFile = "/soap.log";
 LPCSTR pszHomeHtml = "/index.htm";
 LPCSTR pszSoapXml = "/ns.winconfig.req.xml";
@@ -169,6 +170,7 @@ void GetHtml(struct soap *pSoap, LPCSTR lpszFilename)
 		SoapSendMyStack(pSoap, &bufStack);
     } while (!(dwBytesRead < BUFFER_SIZE));
 	deleteStack(&bufStack);
+	fclose(pfHtml);
 }
 
 DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
@@ -318,7 +320,7 @@ VOID MIMEType4FileType(struct soap *soap, FileType ft)
     }
 }
 
-HANDLE SelectGetFile(LPCSTR lpszFilename)
+HANDLE OpenGetFile(LPCSTR lpszFilename)
 {
 	HANDLE hFile;
 	// GetFullFilePath here.
@@ -336,7 +338,7 @@ void SendFile(struct soap *soap, LPSTR pszFilename)
     const int BUFFER_SIZE = 1024 * 16;
     DWORD dwBytesRead = 0;
     char read_buf[BUFFER_SIZE] = {0};
-	HANDLE hFile = SelectGetFile(pszFilename);
+	HANDLE hFile = OpenGetFile(pszFilename);
     if (hFile == INVALID_HANDLE_VALUE) 
     {
         HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());

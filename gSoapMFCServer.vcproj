@@ -340,6 +340,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\moo.fx.js"
+				>
+			</File>
+			<File
+				RelativePath=".\prototype.lite.js"
+				>
+			</File>
+			<File
 				RelativePath=".\test.htm"
 				DeploymentContent="true"
 				>
