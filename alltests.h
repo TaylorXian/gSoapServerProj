@@ -1,3 +1,32 @@
+#ifdef WINCE
+void WinApiTest()
+{
+    ShowInfo("ready to Test!");
+    char buf[1024] = {0};
+    DWORD dwRead = 0;
+    ShowInfo("ready to OpenFile!");
+    HANDLE hFile = OpenWebFile(_T("/PocketMory1/index.htm"));
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        ShowInfo("OpenFile error!");
+    }
+    else
+    {
+        ShowInfo("OpenFile!");
+        HRESULT hr = ReadFileToBuffer(hFile, buf, 1024 - 1, &dwRead);
+        if (SUCCEEDED(hr))
+        {
+            ShowInfo(buf);
+            // 可以读出文件，没有问题。
+        }
+        else
+        {
+            ShowInfo("Read error!");
+        }
+    }
+    CloseHandle(hFile);
+}
+#else
 BOOL PrintStrings(HANDLE hOut, ...)
 {
     BOOL reVal = TRUE;
@@ -143,3 +172,4 @@ void AllTests()
 {
     //gethtmltest();
 }
+#endif

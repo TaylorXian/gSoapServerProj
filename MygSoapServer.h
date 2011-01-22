@@ -5,6 +5,12 @@
 #include "MyFileParser.h"
 #include "alltests.h"
 
+#ifndef WINCE
+#define HTTP_SVR_PORT 18083
+#else
+#define HTTP_SVR_PORT 80
+#endif
+
 LPCSTR pszCfgFile = "/test.ini";
 LPCSTR pszLogFile = "/soap.log";
 LPCSTR pszHomeHtml = "/index.htm";
@@ -447,8 +453,12 @@ int MyHttpGet(struct soap *soap)
 
 	soap_response(soap, SOAP_FILE);
 	FileType ft = GetFileFullPath(szFilename, soap->path);
+	WriteLog(szFilename);
+	//ShowInfo(szFilename);
 	MIMEType4FileType(soap, ft);
+	//ShowInfo("MIMEType4FileType");
 	hFile = SelectFile(szFilename);
+	//ShowInfo("SelectFile");
     if (hFile == INVALID_HANDLE_VALUE) 
     {
         ShowInfo("get file error!");
@@ -467,10 +477,11 @@ int MyHttpGet(struct soap *soap)
 
             if (ft == HTML)
             {
+				#ifndef WINCE
 				CloseHandle(hFile);
 				// 若以Unicode字符的方式打开的文件，必须重新打开，
 				// 否则读不出数据。
-				hFile = OpenWebFileA("index.htm");
+				hFile = OpenWebFileA(szFilename);
 				int hCrt = _open_osfhandle((intptr_t)hFile, _O_RDONLY | _O_TEXT);
 				FILE *hfHtml = _fdopen(hCrt, "rt");
 				if (hfHtml != NULL)
@@ -482,6 +493,14 @@ int MyHttpGet(struct soap *soap)
 				//fclose(hfHtml);
 				//再调用CloseHandle会出错。
 				//所以这里不用关闭文件
+				#else
+				FILE *hfHtml = fopen(szFilename, "rt");
+				if (hfHtml != NULL)
+				{
+					GetHtml(soap, hfHtml);
+				}
+				fclose(hfHtml);
+				#endif
             }
             else
             {

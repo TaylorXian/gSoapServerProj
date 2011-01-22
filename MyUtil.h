@@ -122,6 +122,8 @@ int CloseFile(FILE* pf)
     }
     return fclose(pf);
 }
+
+#ifndef WINCE
 HANDLE MyOpenFileA(
                 LPCSTR lpszFilename,
                 DWORD dwDesiredAccess, 
@@ -143,6 +145,7 @@ HANDLE OpenWebFileA(LPCSTR lpszFilename)
                     GENERIC_READ,
                     FILE_SHARE_READ);
 }
+#endif
 
 HANDLE MyOpenFile(
                 LPCTSTR lpszFilename,
