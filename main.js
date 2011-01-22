@@ -68,12 +68,12 @@ $(document).ready(function() {
                     if ($(this).text() == "true")
                     {
                         $('#lblInfo').text("³É¹¦....");
-                        setTimeout("done()", 2000);
+                        setTimeout("done()", 768);
                     }
                     else
                     {
                         $('#lblInfo').text("Ê§°Ü¡£");
-                        setTimeout("$('#btnClose').click()", 2000);
+                        setTimeout("$('#btnClose').click()", 768);
                     }
                 });
             },

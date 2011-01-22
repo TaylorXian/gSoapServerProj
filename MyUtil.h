@@ -54,7 +54,7 @@ FileType GetFileFullPath(LPSTR lpszFullpath, LPCSTR path)
         if (strstr(path, ".ini"))
         {
             sprintf(lpszFullpath, lpszFormat, path);
-            return LOG;
+            return INI;
         }
         sprintf(lpszFullpath, lpszFormat, pszSoapXml);
     }
@@ -225,3 +225,264 @@ int ShowInfo(LPCSTR lpInfo, int lenInfo = -1)
     delete[] p;
     return reVal;
 }
+
+DWORD FindKeyLite(HANDLE hCfgFile, LPSTR key, LPSTR val)
+{
+    int ConfigChangeState(int*, char*);
+    const int BUFFER_SIZE = 128;
+    outStackBuffer stack;
+    initStack(&stack, (strlen(key) + strlen(val) + BUFFER_SIZE) * 2);
+    LPSTR pBuffer = new CHAR[BUFFER_SIZE];
+    LPSTR pKey = key;
+    DWORD dwBytesRead = 0;
+    DWORD dwBytesWritten = 0;
+    int i = 0;
+    int rStart = -1;
+    int wStart = -1;
+    int status = 0;
+    //SetFilePointer();
+    pushStack(&stack, key, strlen(key));
+    pushStack(&stack, '=');
+    pushStack(&stack, val, strlen(val));
+    pushStack(&stack, '\r');
+    pushStack(&stack, '\n');
+    do {
+        i = 0;
+        dwBytesRead = 0;
+        dwBytesWritten = 0;
+        ZeroMemory(pBuffer, BUFFER_SIZE);
+        if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
+        {
+            // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
+            rStart = GetFileCurrentPointer(hCfgFile);
+            if (status >= 3 && stack.index > 0 && (wStart + stack.index < rStart))
+            {
+                SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
+                if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+                {
+                    wStart += dwBytesWritten;
+                    emptyStack(&stack);
+                }
+                SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
+            }
+            for (i = 0; i < dwBytesRead; i++)
+            {
+                char ch = *(pBuffer + i);
+                switch(status)
+                {
+					case 0:
+                    {
+                        wStart = GetFileCurrentPointer(hCfgFile) - dwBytesRead + i;
+                    }
+                    case 1:
+                    {
+                        if (ch == *pKey)
+                        {
+                            pKey++;
+                            if (*pKey == '\0')
+                            {
+                                status = 2;
+                            }
+                            else
+                            {
+                                status = 1;
+                            }
+                        }
+                        else
+                        {
+                            status = -1;
+                        }
+                        break;
+                    }
+                    case 2:
+                    {
+                        if (ch == ' ' || ch == '\t')
+                        {
+                        }
+                        else if (ch == '=' || ch == '\r' || ch == '\n')
+                        {
+                            status = 3;
+                        }
+                        else
+                        {
+                            status = -1;
+                        }
+                        break;
+                    }
+                    case 3:
+                    {
+                        if (ch == '\n')
+                        {
+                            status = 4;
+                        }
+                        break;
+                    }
+                    case 4:
+                    {
+                        pushStack(&stack, ch);
+                        break;
+                    }
+                    case -1:
+                    {
+                        wStart = -1;
+                        pKey = key;
+                        if (ch == '\n')
+                        {
+                            status = 0;
+                        }
+                    }
+                    default:
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+    } while (!(dwBytesRead < BUFFER_SIZE - 1));
+    if (stack.index > 0)
+    {
+        if (status >= 3 && wStart > -1)
+        {
+            SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
+        }
+        if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+        {
+            wStart += dwBytesWritten;
+            emptyStack(&stack);
+        }
+    }
+    delete[] pBuffer;
+    deleteStack(&stack);
+	if (!MySetFileEnd(hCfgFile, rStart))
+	{
+		return 0;
+	}
+    return dwBytesWritten;
+}
+
+DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
+{
+    int ConfigChangeState(int*, char*);
+    const int BUFFER_SIZE = 128;
+    outStackBuffer stack;
+    initStack(&stack, (strlen(key) + strlen(val) + BUFFER_SIZE) * 2);
+    LPSTR pBuffer = new CHAR[BUFFER_SIZE];
+    LPSTR pKey = key;
+    DWORD dwBytesRead = 0;
+    DWORD dwBytesWritten = 0;
+    bool find = false;
+    bool end = false;
+    int i = 0;
+    int rStart = -1;
+    int wStart = -1;
+    int status = 0;
+    //SetFilePointer();
+    pushStack(&stack, key, strlen(key));
+    pushStack(&stack, '=');
+    pushStack(&stack, val, strlen(val));
+    pushStack(&stack, "\r");
+    pushStack(&stack, "\n");
+    do {
+        i = 0;
+        dwBytesRead = 0;
+        dwBytesWritten = 0;
+        ZeroMemory(pBuffer, BUFFER_SIZE);
+        if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
+        {
+            // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
+            rStart = GetFileCurrentPointer(hCfgFile);
+            for (i = 0; i < dwBytesRead; i++)
+            {
+                ConfigChangeState(&status, pBuffer + i);
+                if (find)
+                {
+                    switch(status)
+                    {
+						case 0:
+                        {
+                            if (end)
+                            {
+                                pushStack(&stack, pBuffer + i);
+						    }
+						    else
+						    {
+						        end = true;
+						    }
+						    break;
+                        }
+                        case 1:
+                        {
+                            if (end)
+                            {
+                                pushStack(&stack, pBuffer + i);
+                            }
+                            else
+                            {
+                                if (*(pBuffer + i) != ' ' || *(pBuffer + i) != '\t')
+                                {
+                                    find = false;
+                                    end = false;
+                                }
+                            }
+                            break;
+                        }
+                        default:
+                        {
+                            if (end)
+                            {
+                                pushStack(&stack, pBuffer + i);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (*(pBuffer + i) == *pKey)
+                    {
+						pKey++;
+                        if (*pKey == '\0')
+                        {
+                            find = true;
+                        }
+                        if (wStart < 0)
+                        {
+                            wStart = GetFileCurrentPointer(hCfgFile) - dwBytesRead + i;
+                        }    
+                    }
+                    else
+                    {
+                        wStart = -1;
+                        rStart = -1;
+                        pKey = key;
+                    }
+                }
+            }
+            if (find && end && ((wStart + stack.index < rStart) || (dwBytesRead < BUFFER_SIZE - 1)))
+            {
+                SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
+                if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+                {
+                    wStart += dwBytesWritten;
+                    emptyStack(&stack);
+                }
+                SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
+            }
+        }
+    } while (!(dwBytesRead < BUFFER_SIZE - 1));
+    if (stack.index > 0)
+    {
+        if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
+        {
+            wStart += dwBytesWritten;
+            emptyStack(&stack);
+        }
+    }
+	if (!MySetFileEnd(hCfgFile, rStart))
+	{
+		return 0;
+	}
+    delete[] pBuffer;
+    deleteStack(&stack);
+    return dwBytesWritten;
+}
+

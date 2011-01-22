@@ -8,4 +8,5 @@ gSoapTest/Release
 *.ncb
 *.aps
 *.log
-test.ini
+*.ini
+!config.ini

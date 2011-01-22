@@ -40,18 +40,33 @@ void SoapSendMyStack(struct soap *pSoap, poutStackBuffer pStack)
 		emptyzeroStack(pStack);
     }
 }
+LPSTR GetConfigFilename(LPCSTR path)
+{
+    LPSTR pszFilename = (LPSTR)strstr(path, "?");
+    if (!pszFilename)
+    {
+        pszFilename = (LPSTR)pszCfgFile;
+    }
+    else
+    {
+        pszFilename[0] = '/';
+    }
+    return pszFilename;
+}
 
 void GenerateConfigTableCRT(struct soap *pSoap, poutStackBuffer pStack)
 {
     const int BUFFER_SIZE = 128;
     char fullpath[64] = {0};
-    GetFileFullPath(fullpath, pszCfgFile);
+    LPSTR pszFilename = GetConfigFilename(pSoap->path);
+    GetFileFullPath(fullpath, pszFilename);
     FILE *pCfgFile = OpenWebFileCRT(fullpath);
     if (pCfgFile == NULL) 
     {
 		ShowInfo("file not found!");
 		return;
     }
+    
     LPSTR lpBuffer = new CHAR[BUFFER_SIZE];
     if (lpBuffer)
     {
@@ -91,11 +106,12 @@ void GenerateConfigTableCRT(struct soap *pSoap, poutStackBuffer pStack)
     fclose(pCfgFile);
 }
 
-void GetHtml(struct soap *pSoap, FILE *pfHtml)
+void GetHtml(struct soap *pSoap, LPCSTR lpszFilename)
 {
+    FILE *pfHtml = fopen(lpszFilename, "rt");
     if (pfHtml == NULL) 
     {
-        ShowInfo("get file error!");
+        WriteLog("get file error!");
         return;
     }
     const int BUFFER_SIZE = 1024 * 8;
@@ -197,14 +213,11 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
                 MessageBox(0, _T("soap_accept Error!"), _T("Error"), MB_OK);
                 break;
             }
-            // fprintf(...
+
 			WriteLog("Thread %d accept socket %d connection from IP %d.%d.%d.%d, request %d", 
 				soapSvrThdid, s, (calc_soap.ip >> 24) & 0xFF, 
 				(calc_soap.ip >> 16) & 0xFF, 
 				(calc_soap.ip >> 8) & 0xFF, calc_soap.ip & 0xFF, i++);
-			//soap_clr_mode(&calc_soap, SOAP_C_UTFSTRING);
-			//soap_set_mode(&calc_soap, SOAP_C_MBSTRING);
-			//soap_omode(&calc_soap, SOAP_C_MBSTRING);
 
             // process RPC request
 			if (soap_serve(&calc_soap) != SOAP_OK)
@@ -238,20 +251,21 @@ int ns__add(struct soap *calc_soap, double a, double b, double &result)
 }
 
 // Implementation of the "winconfig" service operation
-int ns__winconfig(struct soap*, char *key, char *value, bool &result)
+int ns__winconfig(struct soap* pSoap, char *key, char *value, bool &result)
 {
     result = false;
-	WriteLog("%s = %s", key, value);
+	WriteLog("POST:path = %s %s = %s", pSoap->path, key, value);
 	if (strlen(key) == 0)
 	{
         result = false;
         return -1;
 	}
-	char filename[64] = {0};
-	GetFileFullPath(filename, pszCfgFile);
-	int len = strlen(filename) + 1;
+	char fullpath[64] = {0};
+	LPSTR pszFilename = GetConfigFilename(pSoap->path);
+	GetFileFullPath(fullpath, pszFilename);
+	int len = strlen(fullpath) + 1;
 	wchar_t* szFullpath = new wchar_t[len];
-	MbToWc(filename, -1, szFullpath, len);
+	MbToWc(fullpath, -1, szFullpath, len);
 
 	HANDLE hCfgFile = MyOpenFile(
 	                            szFullpath, 
@@ -278,132 +292,6 @@ int ns__winconfig(struct soap*, char *key, char *value, bool &result)
     return SOAP_OK;
 }
 
-DWORD FindKey(HANDLE hCfgFile, LPSTR key, LPSTR val)
-{
-    int ConfigChangeState(int*, char*);
-    const int BUFFER_SIZE = 128;
-    outStackBuffer stack;
-    initStack(&stack, (strlen(key) + strlen(val) + BUFFER_SIZE) * 2);
-    LPSTR pBuffer = new CHAR[BUFFER_SIZE];
-    LPSTR pKey = key;
-    DWORD dwBytesRead = 0;
-    DWORD dwBytesWritten = 0;
-    bool find = false;
-    bool end = false;
-    int i = 0;
-    int rStart = -1;
-    int wStart = -1;
-    int status = 0;
-    //SetFilePointer();
-    pushStack(&stack, key, strlen(key));
-    pushStack(&stack, '=');
-    pushStack(&stack, val, strlen(val));
-    pushStack(&stack, "\r");
-    pushStack(&stack, "\n");
-    do {
-        i = 0;
-        dwBytesRead = 0;
-        dwBytesWritten = 0;
-        ZeroMemory(pBuffer, BUFFER_SIZE);
-        if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
-        {
-            // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
-            rStart = GetFileCurrentPointer(hCfgFile);
-            for (i = 0; i < dwBytesRead; i++)
-            {
-                ConfigChangeState(&status, pBuffer + i);
-                if (find)
-                {
-                    switch(status)
-                    {
-						case 0:
-                        {
-                            if (end)
-                            {
-                                pushStack(&stack, pBuffer + i);
-						    }
-						    else
-						    {
-						        end = true;
-						    }
-						    break;
-                        }
-                        case 1:
-                        {
-                            if (end)
-                            {
-                                pushStack(&stack, pBuffer + i);
-                            }
-                            else
-                            {
-                                if (*(pBuffer + i) != ' ' || *(pBuffer + i) != '\t')
-                                {
-                                    find = false;
-                                    end = false;
-                                }
-                            }
-                            break;
-                        }
-                        default:
-                        {
-                            if (end)
-                            {
-                                pushStack(&stack, pBuffer + i);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    if (*(pBuffer + i) == *pKey)
-                    {
-						pKey++;
-                        if (*pKey == '\0')
-                        {
-                            find = true;
-                        }
-                        if (wStart < 0)
-                        {
-                            wStart = GetFileCurrentPointer(hCfgFile) - dwBytesRead + i;
-                        }    
-                    }
-                    else
-                    {
-                        wStart = -1;
-                        rStart = -1;
-                        pKey = key;
-                    }
-                }
-            }
-            if (find && end && ((wStart + stack.index < rStart) || (dwBytesRead < BUFFER_SIZE - 1)))
-            {
-                SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
-                if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
-                {
-                    wStart += dwBytesWritten;
-                    emptyStack(&stack);
-                }
-                SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
-            }
-        }
-    } while (!(dwBytesRead < BUFFER_SIZE - 1));
-    if (stack.index > 0)
-    {
-        if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
-        {
-            wStart += dwBytesWritten;
-            emptyStack(&stack);
-        }
-    }
-	if (!MySetFileEnd(hCfgFile, rStart))
-	{
-		return 0;
-	}
-    delete[] pBuffer;
-    deleteStack(&stack);
-    return dwBytesWritten;
-}
-
 void SoapErr(struct soap *soap)
 {
     WriteLog(NULL);
@@ -412,6 +300,7 @@ void SoapErr(struct soap *soap)
 
 VOID MIMEType4FileType(struct soap *soap, FileType ft)
 {
+	soap_response(soap, SOAP_FILE);
 	switch (ft)
     {
         case HTML:
@@ -429,7 +318,7 @@ VOID MIMEType4FileType(struct soap *soap, FileType ft)
     }
 }
 
-HANDLE SelectFile(LPCSTR lpszFilename)
+HANDLE SelectGetFile(LPCSTR lpszFilename)
 {
 	HANDLE hFile;
 	// GetFullFilePath here.
@@ -442,74 +331,46 @@ HANDLE SelectFile(LPCSTR lpszFilename)
 	return hFile;
 }
 
-int MyHttpGet(struct soap *soap)
+void SendFile(struct soap *soap, LPSTR pszFilename)
 {
-    const int BUFFER_SIZE = 1024 * 8;
-    HRESULT hr = S_OK;
-    HANDLE hFile;
+    const int BUFFER_SIZE = 1024 * 16;
     DWORD dwBytesRead = 0;
     char read_buf[BUFFER_SIZE] = {0};
-    char szFilename[64] = {0};
-
-	soap_response(soap, SOAP_FILE);
-	FileType ft = GetFileFullPath(szFilename, soap->path);
-	WriteLog(szFilename);
-	//ShowInfo(szFilename);
-	MIMEType4FileType(soap, ft);
-	//ShowInfo("MIMEType4FileType");
-	hFile = SelectFile(szFilename);
-	//ShowInfo("SelectFile");
+	HANDLE hFile = SelectGetFile(pszFilename);
     if (hFile == INVALID_HANDLE_VALUE) 
     {
-        ShowInfo("get file error!");
-        hr = HRESULT_FROM_WIN32(::GetLastError());
+        HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
+        WriteLog("GET file error %d!", hr);
+        return;
     }
-    if (SUCCEEDED(hr))
-    {
-        //ShowInfo("get file success!", strlen("get file success!"));
-        do {
-            int start = -1;
-            int end = -1;
-            ReadFileToBuffer(hFile,
-                read_buf, 
-                BUFFER_SIZE, 
-                &dwBytesRead);
-
-            if (ft == HTML)
-            {
-				#ifndef WINCE
-				CloseHandle(hFile);
-				// 若以Unicode字符的方式打开的文件，必须重新打开，
-				// 否则读不出数据。
-				hFile = OpenWebFileA(szFilename);
-				int hCrt = _open_osfhandle((intptr_t)hFile, _O_RDONLY | _O_TEXT);
-				FILE *hfHtml = _fdopen(hCrt, "rt");
-				if (hfHtml != NULL)
-				{
-					GetHtml(soap, hfHtml);
-				}
-				//这里不需要关闭文件
-				//请求完成时会调用CloseHandle，如果这里调用
-				//fclose(hfHtml);
-				//再调用CloseHandle会出错。
-				//所以这里不用关闭文件
-				#else
-				FILE *hfHtml = fopen(szFilename, "rt");
-				if (hfHtml != NULL)
-				{
-					GetHtml(soap, hfHtml);
-				}
-				fclose(hfHtml);
-				#endif
-            }
-            else
-            {
-                soap_send_raw(soap, read_buf, dwBytesRead);
-            }
-        } while (!(dwBytesRead < BUFFER_SIZE));
-    }
-    soap_end_send(soap);
+    do {
+        int start = -1;
+        int end = -1;
+        ReadFileToBuffer(hFile,
+            read_buf, 
+            BUFFER_SIZE, 
+            &dwBytesRead);
+        soap_send_raw(soap, read_buf, dwBytesRead);
+    } while (!(dwBytesRead < BUFFER_SIZE));
     CloseHandle(hFile);
+}
+
+int MyHttpGet(struct soap *soap)
+{
+    char szFilename[64] = {0};
+
+	FileType ft = GetFileFullPath(szFilename, soap->path);
+	WriteLog(szFilename);
+	MIMEType4FileType(soap, ft);
+    if (ft == HTML)
+    {
+        GetHtml(soap, szFilename);
+    }
+    else
+    {
+        SendFile(soap, szFilename);
+    }
+	soap_end_send(soap);
 	WriteLog("MyHttpGet %s", soap->path);
 
     return SOAP_OK;
@@ -553,138 +414,4 @@ void my_soap_init(struct soap *pSoap)
 	//soap_set_mode(pSoap, SOAP_C_MBSTRING);
 	//soap_omode(&calc_soap, SOAP_C_MBSTRING);
 	pSoap->fget = MyHttpGet;//CRT;
-}
-
-DWORD FindKeyLite(HANDLE hCfgFile, LPSTR key, LPSTR val)
-{
-    int ConfigChangeState(int*, char*);
-    const int BUFFER_SIZE = 128;
-    outStackBuffer stack;
-    initStack(&stack, (strlen(key) + strlen(val) + BUFFER_SIZE) * 2);
-    LPSTR pBuffer = new CHAR[BUFFER_SIZE];
-    LPSTR pKey = key;
-    DWORD dwBytesRead = 0;
-    DWORD dwBytesWritten = 0;
-    int i = 0;
-    int rStart = -1;
-    int wStart = -1;
-    int status = 0;
-    //SetFilePointer();
-    pushStack(&stack, key, strlen(key));
-    pushStack(&stack, '=');
-    pushStack(&stack, val, strlen(val));
-    pushStack(&stack, '\r');
-    pushStack(&stack, '\n');
-    do {
-        i = 0;
-        dwBytesRead = 0;
-        dwBytesWritten = 0;
-        ZeroMemory(pBuffer, BUFFER_SIZE);
-        if (ReadFile(hCfgFile, pBuffer, BUFFER_SIZE - 1, &dwBytesRead, NULL))
-        {
-            // WriteLog("[read  %dB]%s", dwBytesRead, pBuffer);
-            rStart = GetFileCurrentPointer(hCfgFile);
-            if (status >= 3 && stack.index > 0 && (wStart + stack.index < rStart))
-            {
-                SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
-                if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
-                {
-                    wStart += dwBytesWritten;
-                    emptyStack(&stack);
-                }
-                SetFilePointer(hCfgFile, rStart, NULL, FILE_BEGIN);
-            }
-            for (i = 0; i < dwBytesRead; i++)
-            {
-                char ch = *(pBuffer + i);
-                switch(status)
-                {
-					case 0:
-                    {
-                        wStart = GetFileCurrentPointer(hCfgFile) - dwBytesRead + i;
-                    }
-                    case 1:
-                    {
-                        if (ch == *pKey)
-                        {
-                            pKey++;
-                            if (*pKey == '\0')
-                            {
-                                status = 2;
-                            }
-                            else
-                            {
-                                status = 1;
-                            }
-                        }
-                        else
-                        {
-                            status = -1;
-                        }
-                        break;
-                    }
-                    case 2:
-                    {
-                        if (ch == ' ' || ch == '\t')
-                        {
-                        }
-                        else if (ch == '=' || ch == '\r' || ch == '\n')
-                        {
-                            status = 3;
-                        }
-                        else
-                        {
-                            status = -1;
-                        }
-                        break;
-                    }
-                    case 3:
-                    {
-                        if (ch == '\n')
-                        {
-                            status = 4;
-                        }
-                        break;
-                    }
-                    case 4:
-                    {
-                        pushStack(&stack, ch);
-                        break;
-                    }
-                    case -1:
-                    {
-                        wStart = -1;
-                        pKey = key;
-                        if (ch == '\n')
-                        {
-                            status = 0;
-                        }
-                    }
-                    default:
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-    } while (!(dwBytesRead < BUFFER_SIZE - 1));
-    if (stack.index > 0)
-    {
-        if (status >= 3 && wStart > -1)
-        {
-            SetFilePointer(hCfgFile, wStart, NULL, FILE_BEGIN);
-        }
-        if (WriteFile(hCfgFile, stack.pBuffer, stack.index, &dwBytesWritten, NULL))
-        {
-            wStart += dwBytesWritten;
-            emptyStack(&stack);
-        }
-    }
-    delete[] pBuffer;
-    deleteStack(&stack);
-	if (!MySetFileEnd(hCfgFile, rStart))
-	{
-		return 0;
-	}
-    return dwBytesWritten;
 }
