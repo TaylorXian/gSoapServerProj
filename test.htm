@@ -1,12 +1,280 @@
 <html>
 <head>
-<meta name="generator" content="microsoft visual studio 8.0" />
-<script type="text/javascript" src="./prototype.lite.js"></script>
-<script type="text/javascript" src="./moo.fx.js"></script>
-<title>Test Page</title>
+    <meta name="generator" content="microsoft visual studio 8.0" />
+    <title>Test Page</title>
+    <link rel="stylesheet" media="screen" type="text/css" href="./main.css" />
+
+    <script type="text/javascript" src="./prototype.min.js"></script>
+
+    <style type="text/css">
+        h2, h3
+        {
+            letter-spacing: 5px;
+        }
+    </style>
 </head>
 <body>
-<div id="title">This is a Test.</div>
-<table><tr><td>key</td><td>value</td></tr></table>
+    <div id="container">
+        <div id="header">
+            <h2>
+                WinCE Web Service 配置文件管理系统</h2>
+            <div id="nav">
+                <ul>
+                    <li><a href="./index.htm" title="Home"><span>首页</span></a></li>
+                    <li><a href="./index.htm?aaa.ini" title="aaa.ini"><span>aaa.ini</span></a></li>
+                    <li><a href="./index.htm?bbb.ini" title="bbb.ini"><span>bbb.ini</span></a></li></ul>
+            </div>
+        </div>
+        <div id="main">
+            <div>
+                <h3>
+                    配置文件信息</h3>
+            </div>
+            <form>
+            <div id="dialog" class="invisible">
+                <div class="top">
+                    <input type="text" value="" id="txtKey" />=<input type="text" value="" id="txtVal" />
+                </div>
+                <div class="bottom">
+                    <input type="button" value="Modify" id="btnModify" /><input type="button" value="Close"
+                        id="btnClose" /></div>
+                <span id="lblInfo"></span>
+            </div>
+            <input type="hidden" value="click me get soap data" name="web" id="btnGetRequestSoapData" />
+            <input type="hidden" value="click me call web service" name="web" id="btn" />
+            <div class="line">
+                <table id='config'>
+                    <tr>
+                        <td>
+                            loggrade
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            0
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            MONServerIP
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            119.164.55.179
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            MONServerPort
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            51001
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            TFTPServerIP
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            119.164.55.179
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            TFTPServerPort
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            69
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            LocalPort
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            3003
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            ProductID
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            3
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            SnCode
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            MDWA00-0000-000003
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            AppLabel0
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            MCA
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            AppPath0
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            \PocketMory1\MCC\MCA\
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            AppExecName0
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            MCA.exe
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            RunType
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            3
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            ProductID1
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            333
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            ID2
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            22222222
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            ProductID3
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            33333
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            ProductID4
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            44444444
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            ProductID2
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            222222
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            test
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            test
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            aaa
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            aaa.ini
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            bbb
+                        </td>
+                        <td>
+                            =
+                        </td>
+                        <td>
+                            bbb.ini
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="invisible">
+                <input type="button" value="click me get table" name="web" id="btnGetTable" />
+            </div>
+            </form>
+        </div>
+        <hr />
+        <div id="footer">
+            <span>系统功能 - 技术支持 </span>
+        </div>
+    </div>
 </body>
 </html>

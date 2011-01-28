@@ -16,6 +16,7 @@ LPCSTR pszCfgFile = "/config.ini";
 LPCSTR pszLogFile = "/soap.log";
 LPCSTR pszHomeHtml = "/index.htm";
 LPCSTR pszSoapXml = "/ns.winconfig.req.xml";
+LPSTR pszCfgFullpath = NULL;
 HANDLE hSoapServerThd = NULL;
 DWORD soapSvrThdid;
 BOOL startSvr = false;
@@ -54,17 +55,50 @@ LPSTR GetConfigFilename(LPCSTR path)
     }
     return pszFilename;
 }
-
+LPSTR GetWinCEConfigFilename(LPCSTR path)
+{
+    LPSTR pszFilename = (LPSTR)strstr(path, "=");
+    if (pszFilename)
+    {
+        pszFilename++;
+    }
+    return pszFilename;
+}
+void SaveConfigPath(LPCSTR pszFilename)
+{
+    int l = strlen(pszFilename) + 1;
+    pszCfgFullpath = new char[l];
+    ZeroMemory(pszCfgFullpath, l);
+    strcpy(pszCfgFullpath, pszFilename);
+}
 void GenerateConfigTableCRT(struct soap *pSoap, poutStackBuffer pStack)
 {
     const int BUFFER_SIZE = 128;
-    char fullpath[64] = {0};
-    LPSTR pszFilename = GetConfigFilename(pSoap->path);
-    GetFileFullPath(fullpath, pszFilename);
-    FILE *pCfgFile = OpenWebFileCRT(fullpath);
-    if (pCfgFile == NULL) 
+    #ifdef DEBUG | WINCE
+    if (pszCfgFullpath)
     {
-		ShowInfo("file not found!");
+        delete[] pszCfgFullpath;
+        pszCfgFullpath = NULL;
+    }
+    LPSTR pszFilename = GetWinCEConfigFilename(pSoap->path);
+    if (pszFilename)
+    {
+        SaveConfigPath(pszFilename);
+    }
+    else
+    {
+        WriteLog("read default config file.");
+        char fullpath[64] = {0};
+        LPSTR pszFilename = GetConfigFilename(pSoap->path);
+        GetFileFullPath(fullpath, pszFilename);
+        SaveConfigPath(fullpath);
+    }
+    #else
+    #endif
+    FILE *pCfgFile = OpenWebFileCRT(pszCfgFullpath);
+    if (pCfgFile == NULL)
+    {
+		WriteLog("configfile not found!");
 		return;
     }
     
@@ -112,7 +146,7 @@ void GetHtml(struct soap *pSoap, LPCSTR lpszFilename)
     FILE *pfHtml = fopen(lpszFilename, "rt");
     if (pfHtml == NULL) 
     {
-        WriteLog("get file error!");
+        WriteLog("open html file error!");
         return;
     }
     const int BUFFER_SIZE = 1024 * 8;
@@ -262,12 +296,21 @@ int ns__winconfig(struct soap* pSoap, char *key, char *value, bool &result)
         result = false;
         return -1;
 	}
-	char fullpath[64] = {0};
-	LPSTR pszFilename = GetConfigFilename(pSoap->path);
-	GetFileFullPath(fullpath, pszFilename);
-	int len = strlen(fullpath) + 1;
+	if (pszCfgFullpath == NULL)
+	{
+	    result = false;
+	    WriteLog("path has no the param file=configfilefullpath.");
+	    return -1;
+	}
+	//char fullpath[64] = {0};
+	//LPSTR pszFilename = GetConfigFilename(pSoap->path);
+	//GetFileFullPath(fullpath, pszFilename);
+	//int len = strlen(fullpath) + 1;
+	//wchar_t* szFullpath = new wchar_t[len];
+	//MbToWc(fullpath, -1, szFullpath, len);
+	int len = strlen(pszCfgFullpath) + 1;
 	wchar_t* szFullpath = new wchar_t[len];
-	MbToWc(fullpath, -1, szFullpath, len);
+	MbToWc(pszCfgFullpath, -1, szFullpath, len);
 
 	HANDLE hCfgFile = MyOpenFile(
 	                            szFullpath, 
@@ -276,6 +319,7 @@ int ns__winconfig(struct soap* pSoap, char *key, char *value, bool &result)
     if (hCfgFile == INVALID_HANDLE_VALUE)
     {
         result = false;
+        WriteLog("没有找到要修改的配置文件%s。", pszCfgFullpath);
         return HRESULT_FROM_WIN32(GetLastError());
     }
 	delete[] szFullpath;

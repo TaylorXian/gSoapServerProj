@@ -1,7 +1,12 @@
 var soap_req;
 function getUrl(path)
 {
-    return document.URL.substring(0, document.URL.lastIndexOf('/')) + '/' + path;
+    u = document.URL;
+    if (u.indexOf('?') > 0)
+    {
+        u = u.substring(0, u.indexOf('?'));
+    }
+    return u.substring(0, u.lastIndexOf('/')) + '/' + path;
 }
 function done() {
     b = true;
