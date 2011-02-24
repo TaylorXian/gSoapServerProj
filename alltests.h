@@ -1,3 +1,4 @@
+
 #ifdef WINCE
 void WinApiTest()
 {
@@ -27,6 +28,23 @@ void WinApiTest()
     CloseHandle(hFile);
 }
 #else
+
+//#pragma comment(lib, "../gtest-1.5.0/gtestd.lib")
+#include <gtest/gtest.h>
+
+TEST(strstrtest, urlpath)
+{
+    EXPECT_EQ(3, 1 + 2);
+}
+
+int MyGoogleTest()
+{
+    int argc = 0;
+    LPTSTR argv = NULL;
+    testing::InitGoogleTest(&argc, &argv);
+    return RUN_ALL_TESTS();
+}
+
 BOOL PrintStrings(HANDLE hOut, ...)
 {
     BOOL reVal = TRUE;
@@ -171,5 +189,6 @@ VOID CloseStdConsoleCRT()
 void AllTests()
 {
     //gethtmltest();
+    MyGoogleTest();
 }
 #endif
