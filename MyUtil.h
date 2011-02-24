@@ -38,13 +38,11 @@ FileType GetFileFullPath(LPSTR lpszFullpath, LPCSTR path)
         }
         if (strstr(path, ".htm"))
         {
-            if (strstr(path, "?"))
+            sprintf(lpszFullpath, lpszFormat, path);
+            LPSTR p = strstr(lpszFullpath, "?");
+            if (p)
             {
-                sprintf(lpszFullpath, lpszFormat, pszHomeHtml);
-            }
-            else
-            {
-                sprintf(lpszFullpath, lpszFormat, path);
+                ZeroMemory(p, strlen(p));
             }
             return HTML;
         }

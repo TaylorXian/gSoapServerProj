@@ -9,6 +9,7 @@
 #define HTTP_SVR_PORT 18083
 LPCSTR pszCfgFile = "/test.ini";
 #else
+//#define TEST
 #define HTTP_SVR_PORT 80
 LPCSTR pszCfgFile = "/config.ini";
 #endif
@@ -73,8 +74,12 @@ void SaveConfigPath(LPCSTR pszFilename)
 }
 void GenerateConfigTableCRT(struct soap *pSoap, poutStackBuffer pStack)
 {
+    #ifdef TEST
+    WriteLog("Method GenerateConfigTableCRT");
+    #endif
+
     const int BUFFER_SIZE = 128;
-    #ifdef DEBUG | WINCE
+    #if defined(DEBUG) || defined(WINCE)
     if (pszCfgFullpath)
     {
         delete[] pszCfgFullpath;
@@ -93,7 +98,6 @@ void GenerateConfigTableCRT(struct soap *pSoap, poutStackBuffer pStack)
         GetFileFullPath(fullpath, pszFilename);
         SaveConfigPath(fullpath);
     }
-    #else
     #endif
     FILE *pCfgFile = OpenWebFileCRT(pszCfgFullpath);
     if (pCfgFile == NULL)
@@ -143,6 +147,9 @@ void GenerateConfigTableCRT(struct soap *pSoap, poutStackBuffer pStack)
 
 void GetHtml(struct soap *pSoap, LPCSTR lpszFilename)
 {
+    #ifdef TEST
+    WriteLog("Method GetHtml lpszFilename %s", lpszFilename);
+    #endif
     FILE *pfHtml = fopen(lpszFilename, "rt");
     if (pfHtml == NULL) 
     {
@@ -209,6 +216,9 @@ void GetHtml(struct soap *pSoap, LPCSTR lpszFilename)
 
 DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
 {
+    #ifdef TEST
+    WriteLog("Method gSoapServer Param %s", lpThreadParam);
+    #endif
 	startSvr = true;
 	//ServiceService calc_service;
 	//calc_service.serve();
@@ -239,7 +249,7 @@ DWORD WINAPI gSoapServer(LPVOID lpThreadParam)
 	else
 	{
 	    WriteLog("Start Server successful........");
-        MessageBox(0, _T("Start Server successful........"), _T("Info"), MB_OK);
+        //MessageBox(0, _T("Start Server successful........"), _T("Info"), MB_OK);
         while (startSvr)
         {
             s = soap_accept(&calc_soap);
@@ -403,6 +413,9 @@ void SendFile(struct soap *soap, LPSTR pszFilename)
 
 int MyHttpGet(struct soap *soap)
 {
+    #ifdef TEST
+    WriteLog("Method MyHttpGet Param %s", soap->id);
+    #endif
     char szFilename[64] = {0};
 
 	FileType ft = GetFileFullPath(szFilename, soap->path);

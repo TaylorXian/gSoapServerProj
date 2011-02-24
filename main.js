@@ -8,6 +8,16 @@ function getUrl(path)
     }
     return u.substring(0, u.lastIndexOf('/')) + '/' + path;
 }
+function tbl_last_row()
+{
+    var rs = document.getElementById('config').rows;
+    if (rs.length > 0)
+    {
+        return $(rs[rs.length - 1]).clone();
+    }
+    return null;
+    // error
+}
 function done() {
     b = true;
     $('table').find('td').each(function () {
@@ -16,7 +26,7 @@ function done() {
         {
             b = false;
             $(this).parent().children().each(function () {
-                if ($(this).index() == 2)
+                if (this.cellIndex == 2)
                 {
                     $(this).text($('#txtVal').attr("value"));
                 }
@@ -25,8 +35,8 @@ function done() {
     });
     if (b)
     {
-        mo($('table tr').last().clone()).appendTo($('table')).children().each(function () {
-            idx = $(this).index();
+        mo(tbl_last_row().clone()).appendTo($('table')).children().each(function () {
+            idx = this.cellIndex;
             switch (idx)
             {
                 case 0:
@@ -36,7 +46,7 @@ function done() {
                     $(this).text($('#txtVal').attr('value'));
                     break;
                 case 3:
-                    $(this).find('input').attr('id', $(this).parent().index()).click(update);
+                    $(this).find('input').attr('id', $(this).parent()[0].rowIndex).click(update);
                     break;
                 default:
                     break;
@@ -126,7 +136,7 @@ $(document).ready(function() {
 $(document).ready(function() {
     $('#btnGetTable').click(function() {
         $(document.getElementById('config').rows).each(function() {
-            input = $(this).append('<td><input type="button" value="modify" id="' + $(this).index() + '" /></td>').find('input');
+            input = $(this).append('<td><input type="button" value="ÐÞ¸Ä" id="' + this.rowIndex + '" /></td>').find('input');
             input.click(update);
             mo($(this));
         });

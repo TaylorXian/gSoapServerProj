@@ -1,4 +1,9 @@
-//TODO: 1.将gSoap编译成静态库
+//TODO: 
+关于添加新Html页面的一些注意事项：包括引用那些js文件，css文件，html引用css和脚本文件的顺序等。
+生成都 table 更通用
+更换较小的js库
+1.将gSoap编译成静态库
+
 # ruby code
 puts "Hello World!"
 //Some questions
