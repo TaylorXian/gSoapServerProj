@@ -38,11 +38,16 @@ FileType GetFileFullPath(LPSTR lpszFullpath, LPCSTR path)
         }
         if (strstr(path, ".htm"))
         {
+            // test code.
+            //LPCSTR lpszFormat = "/PocketMory1%s";
             sprintf(lpszFullpath, lpszFormat, path);
             LPSTR p = strstr(lpszFullpath, "?");
             if (p)
             {
-                ZeroMemory(p, strlen(p));
+                if (strlen(p) > 0)
+                {
+                    ZeroMemory(p, strlen(p));
+                }
             }
             return HTML;
         }
@@ -87,6 +92,8 @@ BOOL MySetFileEnd(HANDLE hFile, int oldDataEnd)
 
 void WriteLog(const char* info_format, ...)
 {
+    const int LOG_PATH_LEN = 64;
+    const int TIME_STR_LEN = 64;
     SYSTEMTIME timeNow;
     GetLocalTime(&timeNow);
 	va_list arg_ptr;
@@ -94,8 +101,8 @@ void WriteLog(const char* info_format, ...)
     FILE *pfLog;
     //time_t t;
     //time(&t);
-    char time_str[64] = {0};
-    char logpath[64] = {0};
+    char time_str[TIME_STR_LEN] = {0};
+    char logpath[LOG_PATH_LEN] = {0};
     GetFileFullPath(logpath, pszLogFile);
     sprintf(time_str, "%4d/%2d/%2d %2d:%2d:%2d %4dms ... ", timeNow.wYear, timeNow.wMonth, timeNow.wDay,
         timeNow.wHour, timeNow.wMinute, timeNow.wSecond, timeNow.wMilliseconds);

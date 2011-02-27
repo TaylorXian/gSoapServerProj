@@ -5,6 +5,8 @@
 #include "MyFileParser.h"
 #include "alltests.h"
 
+#define PATH_LEN SOAP_TAGLEN * 2
+
 #ifndef WINCE
 #define HTTP_SVR_PORT 18083
 LPCSTR pszCfgFile = "/test.ini";
@@ -68,6 +70,7 @@ LPSTR GetWinCEConfigFilename(LPCSTR path)
 void SaveConfigPath(LPCSTR pszFilename)
 {
     int l = strlen(pszFilename) + 1;
+    // 全局变量 在其他地方释放内存；
     pszCfgFullpath = new char[l];
     ZeroMemory(pszCfgFullpath, l);
     strcpy(pszCfgFullpath, pszFilename);
@@ -93,7 +96,7 @@ void GenerateConfigTableCRT(struct soap *pSoap, poutStackBuffer pStack)
     else
     {
         WriteLog("read default config file.");
-        char fullpath[64] = {0};
+        char fullpath[PATH_LEN] = {0};
         LPSTR pszFilename = GetConfigFilename(pSoap->path);
         GetFileFullPath(fullpath, pszFilename);
         SaveConfigPath(fullpath);
@@ -312,7 +315,7 @@ int ns__winconfig(struct soap* pSoap, char *key, char *value, bool &result)
 	    WriteLog("path has no the param file=configfilefullpath.");
 	    return -1;
 	}
-	//char fullpath[64] = {0};
+	//char fullpath[PATH_LEN] = {0};
 	//LPSTR pszFilename = GetConfigFilename(pSoap->path);
 	//GetFileFullPath(fullpath, pszFilename);
 	//int len = strlen(fullpath) + 1;
@@ -416,7 +419,7 @@ int MyHttpGet(struct soap *soap)
     #ifdef TEST
     WriteLog("Method MyHttpGet Param %s", soap->id);
     #endif
-    char szFilename[64] = {0};
+    char szFilename[PATH_LEN] = {0};
 
 	FileType ft = GetFileFullPath(szFilename, soap->path);
 	WriteLog(szFilename);

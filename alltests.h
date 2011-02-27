@@ -34,7 +34,30 @@ void WinApiTest()
 
 TEST(strstrtest, urlpath)
 {
-    EXPECT_EQ(3, 1 + 2);
+    int const TEST_PATH_LEN = 64;
+    char urlpath[64] = "http://localhost:18083/index.htm?file=/PocketMory1/config.ini";
+    EXPECT_EQ(3, strlen(urlpath));
+    EXPECT_EQ(reinterpret_cast<const char *>(NULL), strstr("/index.htm?", "?"));
+
+    EXPECT_LT(reinterpret_cast<const char *>(NULL), strstr(urlpath, "?"));
+    printf("Sub String %s\n", strstr(urlpath, "?"));
+    //printf(strstr(urlpath, "?"));
+    printf("\n");
+    char urlpathtest[TEST_PATH_LEN] = "/index.htm?file=/PocketMory1/config.ini";
+    char fullpath[TEST_PATH_LEN] = {0};
+    GetFileFullPath(fullpath, urlpathtest);
+    printf("testcase: %s", urlpathtest);
+    printf("\n");
+    printf("result:   %s", fullpath);
+    printf("\n");
+    ZeroMemory(fullpath, TEST_PATH_LEN);
+    ZeroMemory(urlpathtest, TEST_PATH_LEN);
+    sprintf(urlpathtest, "%s", "/index1.htm?file=/PocketMory1/config.ini");
+    GetFileFullPath(fullpath, urlpathtest);
+    printf("testcase: %s", urlpathtest);
+    printf("\n");
+    printf("result:   %s", fullpath);
+    printf("\n");
 }
 
 int MyGoogleTest()

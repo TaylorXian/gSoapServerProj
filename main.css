@@ -26,8 +26,8 @@ table
 #header
 {
     margin: 36px auto 12px auto;
-    padding: 36px auto 12px auto; ;
-min-height:50px;
+    padding: 36px auto 12px auto;
+    min-height:50px;
 }
 #header > #nav
 {

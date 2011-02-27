@@ -3,8 +3,6 @@
 
 #pragma once
 
-#define HTTP_SVR_PORT 18083
-
 // CgSoapMFCServerDlg dialog
 class CgSoapMFCServerDlg : public CDialog
 {
